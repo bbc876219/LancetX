@@ -45,18 +45,18 @@ allprojects {
 }
 
 
-subprojects { project ->
-    group = GROUP
-    version = VERSION_NAME
-    tasks.withType(Javadoc) {
-        enabled = false
-    }
-    plugins.withId("com.vanniktech.maven.publish") {
-        mavenPublish {
-            sonatypeHost = "s01"
-        }
-    }
-}
+//subprojects { project ->
+//    group = GROUP
+//    version = VERSION
+//    tasks.withType(Javadoc) {
+//        enabled = false
+//    }
+//    plugins.withId("com.vanniktech.maven.publish") {
+//        mavenPublish {
+//            sonatypeHost = "s01"
+//        }
+//    }
+//}
 
 task clean(type: Delete) {
     delete rootProject.buildDir
