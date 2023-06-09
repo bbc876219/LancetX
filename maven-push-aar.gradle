@@ -6,7 +6,7 @@ apply plugin: 'maven-publish'
 
 afterEvaluate {
     println("isLocalRepository="+isLocalRepository)
-    println("getRepositoryUrl()="+getRepositoryUrl())
+    println("getRepositoryUrl()="+RELEASE_URL)
     println("NAME()="+NAME)
     println("PASSWORD()="+PASSWORD)
     publishing {

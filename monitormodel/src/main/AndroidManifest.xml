@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    package="com.yxy.monitormodel">
+
+    <application android:allowBackup="true">
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="com.yxy.monitormodel.MonitorThreadInitializer"
+                android:value="androidx.startup" />
+        </provider>
+        <activity
+            android:name="com.yxy.monitormodel.ui.TrackerActivity"
+            android:icon="@mipmap/ic_launcher"
+            android:roundIcon="@mipmap/ic_launcher"
+            android:label="ThreadMonitor"
+            android:theme="@style/MonitorThreadAppTheme"
+            android:launchMode="singleTask"
+            android:exported="true"
+            android:taskAffinity="com.yxy.threadMonitor.task">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <activity
+            android:name="com.yxy.monitormodel.ui.ThreadDetailsActivity"
+            android:taskAffinity="com.yxy.threadMonitor.task" />
+    </application>
+
+</manifest>
