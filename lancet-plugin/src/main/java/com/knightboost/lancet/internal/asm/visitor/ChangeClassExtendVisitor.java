@@ -18,7 +18,9 @@ public class ChangeClassExtendVisitor extends BaseWeaveClassVisitor {
         for (ChangeExtendMeta extendMeta : changeExtendMetas) {
             if (superName != null && superName.equals(extendMeta.getBeforeExtend())
                     && extendMeta.isMatch(name.replace("/", "."))) {
-                superName = extendMeta.getAfterExtend();
+                if (!extendMeta.getAfterExtend().equals(name)) {
+                    superName = extendMeta.getAfterExtend();
+                }
             }
         }
         super.visit(version, access,

@@ -29,8 +29,11 @@ public class ChangeExtendMeta {
     public String getAfterExtend() {
         return afterExtend;
     }
-    public void setClassNameFilterRegex(String filterRegex){
-        pattern = Pattern.compile(filterRegex);
+
+    public void setClassNameFilterRegex(String filterRegex) {
+        if (null != filterRegex && filterRegex.length() > 0) {
+            pattern = Pattern.compile(filterRegex);
+        }
     }
 
     public boolean isMatch(String className){
@@ -41,5 +44,13 @@ public class ChangeExtendMeta {
         this.afterExtend = afterExtend;
     }
 
-
+    @Override
+    public String toString() {
+        return "ChangeExtendMeta{" +
+                "classNameFilterRegex='" + classNameFilterRegex + '\'' +
+                ", beforeExtend='" + beforeExtend + '\'' +
+                ", afterExtend='" + afterExtend + '\'' +
+                ", pattern=" + pattern +
+                '}';
+    }
 }

@@ -56,6 +56,7 @@ public class WeaverMethodParser {
         weaveAnnotations.add(Type.getDescriptor(Proxy.class));
         weaveAnnotations.add(Type.getDescriptor(ReplaceInvoke.class));
         weaveAnnotations.add(Type.getDescriptor(ReplaceNewInvoke.class));
+        weaveAnnotations.add(Type.getDescriptor(ChangeClassExtends.class));
 
     }
 
@@ -234,6 +235,7 @@ public class WeaverMethodParser {
         }
 
         TransformInfo transformInfo = LancetContext.instance().getTransformInfo();
+
         if (this.weaverType ==WeaverType.INSERT){
             AnnotationNode insertAnnotation = getAnnotation(methodNode, Insert.class);
             String targetMethodName = getTargetMethodName();
@@ -250,6 +252,7 @@ public class WeaverMethodParser {
                         methodNode
                 );
                 transformInfo.addInsertInfo(insertInfo);
+                getLogger().i("parse","WeaverType.INSERT:"+insertInfo);
             }
 
         }else if (this.weaverType ==WeaverType.PROXY){
@@ -265,6 +268,7 @@ public class WeaverMethodParser {
                 ProxyInfo proxyInfo = new ProxyInfo(regex, targetClass, targetMethodName,
                         targetMethodDesc, sourceClassName(), methodNode);
                 transformInfo.addProxyInfo(proxyInfo);
+                getLogger().i("parse","WeaverType.PROXY:"+proxyInfo);
             }
 
         } else  if (this.weaverType == WeaverType.REPLACE_INVOKE){
@@ -292,6 +296,7 @@ public class WeaverMethodParser {
                 replaceInfo.targetIsStatic =isStatic;
                 replaceInfo.check();
                 transformInfo.addReplaceInfo(replaceInfo);
+                getLogger().i("parse","WeaverType.REPLACE_INVOKE:"+replaceInfo);
             }
         } else  if (this.weaverType == WeaverType.REPLACE_NEW_INVOKE){
             AnnotationNode annotation = getAnnotation(methodNode, ReplaceNewInvoke.class);
@@ -307,6 +312,7 @@ public class WeaverMethodParser {
                     newClassType,
                     methodNode);
             transformInfo.addReplaceInvokes(replaceInvokeInfo);
+            getLogger().i("parse","WeaverType.REPLACE_NEW_INVOKE:"+replaceInvokeInfo);
 
         } else  if (this.weaverType == WeaverType.CHANGE_CLASS_EXTEND){
             AnnotationNode annotation = getAnnotation(methodNode, ChangeClassExtends.class);
@@ -319,6 +325,7 @@ public class WeaverMethodParser {
             String classNameFilterRegex = AnnotationNodeUtil.getAnnotationStringValue(annotation, "classNameFilterRegex");
             changeExtendMeta.setClassNameFilterRegex(classNameFilterRegex);
             transformInfo.addChangeExtend(changeExtendMeta);
+            getLogger().i("parse","WeaverType.CHANGE_CLASS_EXTEND:"+changeExtendMeta);
         }
 
 

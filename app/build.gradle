@@ -25,7 +25,12 @@ LancetX{
         replaceInvokeTest {
             enable true
         }
-
+        replaceNewTest {
+            enable(true)
+        }
+        ExtendTest {
+            enable true
+        }
     }
 }
 

@@ -19,15 +19,15 @@ public class ReplaceInvokeTest {
     @TargetClass(value = "android.util.Log",scope = Scope.SELF)
     @TargetMethod(methodName = "i")
     public static int replaceLogI2(String tag,String msg){
-        msg = msg + "被替换";
+        msg = msg + "被替换replaceInvokeTest";
         return Log.e("zxw",msg);
     }
 
-    @ReplaceInvoke()
+    @ReplaceInvoke(isStatic = false)
     @TargetClass(value = "com.knightboost.lancetx.ClassA",scope = Scope.SELF)
     @TargetMethod(methodName = "printMessage")
     public static void printMessage(ClassA a, String msg){
-        msg = msg + "被替换 <- printMessage";
+        msg = msg + "被替换replaceInvokeTest <- printMessage";
         Log.e("ClassA",msg);
     }
 }

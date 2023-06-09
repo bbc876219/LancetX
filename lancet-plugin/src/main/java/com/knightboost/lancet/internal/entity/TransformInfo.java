@@ -103,6 +103,12 @@ public class TransformInfo {
                 content.append(' ').append(info).append("\n");
             }
         }
+        if (changeExtendMetas != null) {
+            content.append("changeExtendMetas:\n");
+            for (ChangeExtendMeta info : this.changeExtendMetas) {
+                content.append(' ').append(info).append("\n");
+            }
+        }
         return content.toString();
     }
 }
