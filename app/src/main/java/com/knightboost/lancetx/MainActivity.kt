@@ -17,17 +17,26 @@ class MainActivity : AppCompatActivity() {
             ConstructorTest(" original call^");
         }
     }
+    val runnable = Runnable{ Log.e("test","runnable")}
 
     override fun onResume() {
         super.onResume()
         val thread = Thread()
         val intent = Intent()
         Log.i("Activity","onResume")
+        Thread(runnable).start()
+        Log.i("Activity","onResume1")
+        val thread1 = AThread(runnable)
+        thread1.start()
+        Log.i("Activity","onResume2")
+        val thread2 = BThread(runnable)
+        thread2.start()
+        Log.i("Activity","onResume3")
     }
 
     fun normalMethod(){
         Log.i("Activity","normalMethod")
-        val thread = Thread()
+        val thread = AThread(runnable)
     }
 
 }
