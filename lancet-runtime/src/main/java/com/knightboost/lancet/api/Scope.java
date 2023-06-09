@@ -7,9 +7,24 @@ package com.knightboost.lancet.api;
  *
  */
 public enum Scope {
-    SELF, // 类自身
-    DIRECT, //指定类的所有直接子类
-    ALL, // 指定的类 及其所有子类
-    ALL_CHILDREN, //指定类的所有子类
-    LEAF   //指定类的所有 最终子类
+    /**
+     * 类自身
+     */
+    SELF,
+    /**
+     * 指定类的所有直接子类
+     */
+    DIRECT,
+    /**
+     * 指定的类 及其所有子类
+     */
+    ALL,
+    /**
+     * 指定类的所有子类
+     */
+    ALL_CHILDREN,
+    /**
+     * 指定类的所有 最终子类
+     */
+    LEAF
 }
