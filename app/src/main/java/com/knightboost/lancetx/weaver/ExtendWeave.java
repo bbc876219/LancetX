@@ -11,8 +11,20 @@ public class ExtendWeave {
 
     @ChangeClassExtends(
             beforeExtend = "java.lang.Thread",
-            afterExtend = "com.knightboost.lancetx.ProxyThread",
+            afterExtend = "com.yxy.monitormodel.proxy.TBaseThread",
             classNameFilterRegex = ""
     )
     public void extendThreadChange(){};
+    @ChangeClassExtends(
+            beforeExtend = "android.os.Handler",
+            afterExtend = "com.yxy.monitormodel.proxy.GlobalHandler",
+            classNameFilterRegex = ""
+    )
+    public void extendHandlerChange(){};
+    @ChangeClassExtends(
+            beforeExtend = "android.os.HandlerThread",
+            afterExtend = "com.yxy.monitormodel.proxy.TBaseHandlerThread",
+            classNameFilterRegex = ""
+    )
+    public void extendHandlerThreadChange(){};
 }

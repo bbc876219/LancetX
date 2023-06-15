@@ -17,13 +17,13 @@ LancetX{
 
     weaveGroup{
         insertTest {
-            enable true
-        }
-        proxyTest {
             enable false
         }
-        replaceInvokeTest {
+        proxyTest {
             enable true
+        }
+        replaceInvokeTest {
+            enable false
         }
         replaceNewTest {
             enable(true)

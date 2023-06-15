@@ -2,6 +2,7 @@ package com.yxy.monitormodel.proxy
 
 import android.os.HandlerThread
 import android.os.SystemClock
+import android.util.Log
 import com.yxy.monitormodel.ThreadInfoManager
 import com.yxy.monitormodel.TrackerUtils
 import com.yxy.monitormodel.bean.ThreadInfo
@@ -18,6 +19,7 @@ open class TBaseHandlerThread : HandlerThread {
     @Synchronized
     override fun start() {
         val callStack = TrackerUtils.getStackString()
+        Log.d(Companion.TAG, "start() called callStack")
         super.start()
 
         // 有则更新没有则新增
@@ -45,5 +47,9 @@ open class TBaseHandlerThread : HandlerThread {
     override fun run() {
         super.run()
         ThreadInfoManager.INSTANCE.removeThreadInfo(id)
+    }
+
+    companion object {
+        private const val TAG = "TBaseHandlerThread"
     }
 }
