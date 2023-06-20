@@ -11,25 +11,25 @@ ByteX {
 
 
 apply plugin: 'LancetX'
-LancetX{
+LancetX {
     enable true
     enableInDebug true
 
-    weaveGroup{
+    weaveGroup {
         insertTest {
             enable false
         }
         proxyTest {
-            enable true
+            enable false
         }
         replaceInvokeTest {
             enable false
         }
         replaceNewTest {
-            enable(true)
+            enable(false)
         }
         ExtendTest {
-            enable true
+            enable false
         }
     }
 }
@@ -43,8 +43,9 @@ android {
         targetSdk 32
         versionCode 1
         versionName "1.0"
-
-        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        ndk {
+            abiFilters 'armeabi-v7a', 'arm64-v8a'
+        }
     }
 
     buildTypes {
@@ -73,6 +74,7 @@ dependencies {
     implementation 'androidx.appcompat:appcompat:1.4.1'
     implementation 'com.google.android.material:material:1.5.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.3'
+    api 'me.weishu:epic:0.11.3'
     implementation project(path: ':lancet-runtime')
     implementation project(path: ':monitormodel')
 
