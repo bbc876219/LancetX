@@ -5,6 +5,7 @@ import com.knightboost.lancet.api.annotations.ImplementedInterface;
 import com.knightboost.lancet.api.annotations.ReplaceNewInvoke;
 import com.knightboost.lancet.internal.entity.ChangeExtendMeta;
 import com.knightboost.lancet.internal.entity.ReplaceInvokeInfo;
+import com.knightboost.lancet.internal.log.WeaverLog;
 import com.knightboost.lancet.internal.util.AnnotationNodeUtil;
 import com.knightboost.lancet.api.Scope;
 import com.knightboost.lancet.api.annotations.ClassOf;
@@ -68,6 +69,7 @@ public class WeaverMethodParser {
 
         for (AnnotationNode annotationNode : annotationNodes) {
             if (weaveAnnotations.contains(annotationNode.desc)){
+                WeaverLog.w( "isWeaverMethodNode() called with: annotationNode.desc = [" + annotationNode.desc + "]");
                 return true;
             }
         }

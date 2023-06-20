@@ -39,6 +39,7 @@ public class WeaverClassesParser {
 
 
     public void addWeaverClass(ClassNode classNode){
+        WeaverLog.w( "addWeaverClass() called with: classNode = [" + classNode + "]");
         weaverClasses.add(classNode);
     }
 
@@ -62,6 +63,7 @@ public class WeaverClassesParser {
     }
 
     public void parseWeaver(ClassNode cn) {
+        WeaverLog.w( "parseWeaver() called with: cn = [" + cn.name + "]");
         checkNode(cn);
         LancetContext weaveContext = LancetContext.instance();
         String className = cn.name;
@@ -78,6 +80,7 @@ public class WeaverClassesParser {
         }
         boolean isEnable = weaveContext.isWeaveEnable(className);
         if (!isEnable){
+            WeaverLog.w(  "parseWeaver() called with: isEnable = [" + isEnable + "]className="+className);
             return;
         }
 

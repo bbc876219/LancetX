@@ -2,6 +2,7 @@ package com.knightboost.lancet.plugin;
 
 import com.android.build.gradle.AppExtension;
 import com.knightboost.lancet.internal.entity.TransformInfo;
+import com.knightboost.lancet.internal.log.WeaverLog;
 import com.ss.android.ugc.bytex.common.BaseContext;
 
 import org.gradle.api.Project;
@@ -34,6 +35,7 @@ public class LancetContext extends BaseContext<LancetExtension> {
 
 
     public void registerGroupWeaverClass(String weaverClass, String group) {
+        WeaverLog.w(  "registerGroupWeaverClass() called with: weaverClass = [" + weaverClass + "], group = [" + group + "]");
         weaverClassOfGroupMap.put(weaverClass, group);
     }
 

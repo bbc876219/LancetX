@@ -1,6 +1,8 @@
 package com.knightboost.lancet.internal.entity;
 
 
+import com.knightboost.lancet.internal.log.WeaverLog;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -65,6 +67,7 @@ public class TransformInfo {
     }
 
     public void addWeaverClass(String weaverClass){
+        WeaverLog.w(   "addWeaverClass() called with: weaverClass = [" + weaverClass + "]");
         this.weaverClasses.add(weaverClass);
     }
 
