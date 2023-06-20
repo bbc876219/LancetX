@@ -18,7 +18,7 @@ buildscript {
         //比对字节码
         classpath 'io.github.wurensen:gradle-android-plugin-aspectjx:2.0.14'
 
-        classpath "com.bytedance.android.byteX:base-plugin:0.3.0"
+        classpath "com.bytedance.android.byteX:base-plugin:0.3.1"
         classpath 'com.vanniktech:gradle-maven-publish-plugin:0.18.0'
         //classpath 'io.github.knight-zxw:lancet-plugin:0.0.7'
         classpath 'io.github.lancetx:lancet-plugin:0.0.9'
