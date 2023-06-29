@@ -8,11 +8,14 @@
 #include <string.h>
 #include <sys/time.h>
 #include <unistd.h>
-
+#include <setjmp.h>
+#include "mooner_exception.h"
 #include "bytehook.h"
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeclaration-after-statement"
 #define HACKER_JNI_VERSION    JNI_VERSION_1_6
-#define HACKER_JNI_CLASS_NAME "com/bbc/NativeHacker"
+
 #define HACKER_TAG            "hook_tag"
 
 #pragma clang diagnostic push
@@ -21,7 +24,7 @@
 #define LOGI(fmt, ...) __android_log_print(ANDROID_LOG_INFO, HACKER_TAG, fmt, ##__VA_ARGS__)
 #define LOGW(fmt, ...) __android_log_print(ANDROID_LOG_WARN, HACKER_TAG, fmt, ##__VA_ARGS__)
 #define LOGD(fmt, ...) __android_log_print(ANDROID_LOG_DEBUG, HACKER_TAG, fmt, ##__VA_ARGS__)
-//#define LOGE(fmt, ...) __android_log_print(ANDROID_LOG_ERROR, HACKER_TAG, fmt, ##__VA_ARGS__)
+#define LOGE(fmt, ...) __android_log_print(ANDROID_LOG_ERROR, HACKER_TAG, fmt, ##__VA_ARGS__)
 #pragma clang diagnostic pop
 
 // 原本线程参数
@@ -30,14 +33,48 @@ struct ThreadHookeeArgus {
 
     void *current_arg;
 };
+#define HACKER_JNI_HANDLER "onHandleSignal"
+#define SIGNAL_CRASH_STACK_SIZE (1024 * 128)
+static sigjmp_buf sig_env;
+static volatile int handleFlag = 0;
+static JNIEnv *currentEnv;
+static struct sigaction old;
+extern JavaVM  *currentVm;
+extern jclass callClass ;
+JavaVM *currentVm = NULL;
+jclass callClass = NULL;
+static void *pthread(void *arg) {
+    JavaVMAttachArgs vmAttachArgs;
+    jmethodID id;
+    struct ThreadHookeeArgus *temp = (struct ThreadHookeeArgus *) arg;
+    if (sigsetjmp(sig_env, 1)) {
+        LOGE(  "crash 了，但被我抓住了");
 
+        vmAttachArgs.version = HACKER_JNI_VERSION;
+        vmAttachArgs.name = NULL;
+        vmAttachArgs.group = NULL;
+        __attribute__((unused)) jint attachRet = (*currentVm)->AttachCurrentThread(currentVm, (JNIEnv **) &currentEnv, &vmAttachArgs);
+        // 现在处于native子线程，默认是booster加载器
+         id = (*currentEnv)->GetStaticMethodID(currentEnv, callClass,HACKER_JNI_HANDLER, "()V");
+        (*currentEnv)->CallStaticVoidMethod(currentEnv, callClass, id);
+    } else {
+        temp->current_func(temp->current_arg);
+    }
+    handleFlag = 0;
+    return NULL;
+}
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunused-parameter"
+static void sig_handler(int sig, struct siginfo *info, void *ptr) {
 
-//static void *pthread(void *arg) {
-//  struct ThreadHookeeArgus *temp = (struct ThreadHookeeArgus *) arg;
-//  temp->current_func(temp->current_arg);
-//  __android_log_print(ANDROID_LOG_WARN, HACKER_TAG, "%s", "crash 了，但被我抓住了");
-//  return NULL;
-//}
+    if (handleFlag == 1) {
+        siglongjmp(sig_env, 1);
+    } else {
+        // 交给原来的信号处理器处理
+        sigaction(sig, &old, NULL);
+    }
+}
+#pragma clang diagnostic pop
 typedef int (*open_t)(const char *, int, mode_t);
 
 typedef int (*open_real_t)(const char *, int, mode_t);
@@ -91,7 +128,7 @@ OPEN_DEF(pthread_create)
 
 OPEN_DEF(pthread_setname_np)
 
-
+static bytehook_stub_t pthread_create_single_stub = NULL;
 static void debug(const char *sym, const char *pathname, int flags, int fd, void *lr) {
     Dl_info info;
     memset(&info, 0, sizeof(info));
@@ -240,6 +277,23 @@ static int pthread_create_proxy_auto(pthread_t *thread, pthread_attr_t *attr,
 
     return rs;
 }
+static int pthread_create_proxy_auto_single(pthread_t *thread, pthread_attr_t *attr,
+                                     void *(*start_routine)(void *), void *arg) {
+    int rs =0;
+    struct ThreadHookeeArgus *params;
+    params = (struct ThreadHookeeArgus *) malloc(sizeof(struct ThreadHookeeArgus));
+    params->current_func = start_routine;
+    params->current_arg = arg;
+    handleFlag = 1;
+    //int rs = BYTEHOOK_CALL_PREV(pthread_create_proxy_auto_single, pthread_create_t, thread, attr,start_routine, (void *) arg);
+    rs = BYTEHOOK_CALL_PREV(pthread_create_proxy_auto_single,pthread_create_t, thread, attr,pthread,(void *) params);
+    if (bytehook_get_debug()) {
+        debug_thread_create("pthread_create", rs, (pthread_t) thread, BYTEHOOK_RETURN_ADDRESS());
+    }
+    BYTEHOOK_POP_STACK();
+
+    return rs;
+}
 
 
 static int open_proxy_manual(const char *pathname, int flags, mode_t modes) {
@@ -288,10 +342,21 @@ static bool allow_filter_for_hook_all(const char *caller_path_name, void *arg) {
 }
 
 static int hacker_hook(JNIEnv *env, jobject thiz, jint type) {
-    (void) env, (void) thiz;
 
+    void *open_proxy;
+    void *open_real_proxy;
+    void *open2_proxy;
+    void *close_proxy;
+    void *pthread_join_proxy;
+    void *pthread_detach_proxy;
+    void *pthread_exit_proxy;
+    void *pthread_create_proxy;
+    void *pthread_setname_np_proxy;
+    void *pthread_create_single_proxy;
+    struct sigaction sigc;
+    (void) env, (void) thiz;
     if (NULL != open_stub || NULL != open_real_stub || NULL != open2_stub) return -1;
-    void *open_proxy, *open_real_proxy, *open2_proxy, *close_proxy, *pthread_join_proxy, *pthread_detach_proxy, *pthread_exit_proxy, *pthread_create_proxy, *pthread_setname_np_proxy;
+
     //void *open_proxy, *open_real_proxy, *open2_proxy,*close_proxy;
     if (BYTEHOOK_MODE_MANUAL == bytehook_get_mode()) {
         open_proxy = (void *) open_proxy_manual;
@@ -303,6 +368,7 @@ static int hacker_hook(JNIEnv *env, jobject thiz, jint type) {
         pthread_exit_proxy = (void *) pthread_exit_proxy_auto;
         pthread_create_proxy = (void *) pthread_create_proxy_auto;
         pthread_setname_np_proxy = (void *) pthread_setname_np_proxy_auto;
+        pthread_create_single_proxy = (void *) pthread_create_proxy_auto_single;
     } else {
         open_proxy = (void *) open_proxy_auto;
         open_real_proxy = (void *) open_real_proxy_auto;
@@ -313,6 +379,7 @@ static int hacker_hook(JNIEnv *env, jobject thiz, jint type) {
         pthread_exit_proxy = (void *) pthread_exit_proxy_auto;
         pthread_create_proxy = (void *) pthread_create_proxy_auto;
         pthread_setname_np_proxy = (void *) pthread_setname_np_proxy_auto;
+        pthread_create_single_proxy = (void *) pthread_create_proxy_auto_single;
     }
 
     if (0 == type) {
@@ -398,10 +465,40 @@ static int hacker_hook(JNIEnv *env, jobject thiz, jint type) {
                                                         "pthread_setname_np",
                                                         pthread_setname_np_proxy,
                                                         pthread_setname_np_hooked_callback, NULL);
+
+        pthread_create_single_stub = bytehook_hook_single("libhookee.so", NULL, "pthread_create", pthread_create_single_proxy,
+                                          NULL, NULL);
+//        pthread_create_single_stub = bytehook_hook_single("libhwui.so", NULL, "pthread_create", pthread_create_single_proxy,
+//                                                          NULL, NULL);
+
+        do {
+            stack_t ss;
+            if (NULL == (ss.ss_sp = calloc(1, SIGNAL_CRASH_STACK_SIZE))) {
+                handle_exception(env);
+                break;
+            }
+            ss.ss_size = SIGNAL_CRASH_STACK_SIZE;
+            ss.ss_flags = 0;
+            if (0 != sigaltstack(&ss, NULL)) {
+                handle_exception(env);
+                break;
+            }
+
+            sigc.sa_sigaction = sig_handler;
+            sigemptyset(&sigc.sa_mask);
+            // 推荐采用SA_RESTART 虽然不是所有系统调用都支持，被中断后重新启动，但是能覆盖大部分
+            sigc.sa_flags = SA_SIGINFO | SA_ONSTACK | SA_RESTART;
+            int flag = sigaction( 11, &sigc, &old);
+            if (flag == -1) {
+                handle_exception(env);
+                break;
+            }
+        } while (0);
     }
 
     return 0;
 }
+                                                                           \
 
 static int hacker_unhook(JNIEnv *env, jobject thiz) {
     (void) env, (void) thiz;
@@ -442,6 +539,10 @@ static int hacker_unhook(JNIEnv *env, jobject thiz) {
         bytehook_unhook(pthread_setname_np_stub);
         pthread_setname_np_stub = NULL;
     }
+    if (NULL != pthread_create_single_stub){
+        bytehook_unhook(pthread_create_single_stub);
+        pthread_create_single_stub=NULL;
+    }
 
 
     return 0;
@@ -469,6 +570,7 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved) {
     if (NULL == vm) return JNI_ERR;
 
     JNIEnv *env;
+    currentVm = vm;
     if (JNI_OK != (*vm)->GetEnv(vm, (void **) &env, HACKER_JNI_VERSION)) return JNI_ERR;
     if (NULL == env || NULL == *env) return JNI_ERR;
 
@@ -480,5 +582,11 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved) {
                            {"nativeDumpRecords", "(Ljava/lang/String;)V", (void *) hacker_dump_records}};
     if (0 != (*env)->RegisterNatives(env, cls, m, sizeof(m) / sizeof(m[0]))) return JNI_ERR;
 
+// 此时的cls仅仅是一个局部变量，如果错误引用会出现错误
+    callClass = (*env)->NewGlobalRef(env, cls);
     return HACKER_JNI_VERSION;
 }
+
+
+
+

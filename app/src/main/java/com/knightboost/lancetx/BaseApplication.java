@@ -52,11 +52,7 @@ public class BaseApplication extends Application {
 
     protected void attachBaseContext(Context base) {
         super.attachBaseContext(base);
-        System.loadLibrary("hookee"); // test for load-before-init
-        NativeHacker.isDebug = true;
-        NativeHacker.init();
-        NativeHacker.unhook();
-        NativeHacker.hook(2);
+
         //initStrictMode();
         if (Build.VERSION.SDK_INT <= 31) {
             hookByDexposed();

@@ -6,6 +6,7 @@ import android.util.Log;
 import androidx.annotation.Keep;
 
 import com.bytedance.android.bytehook.ByteHook;
+
 @Keep
 public class NativeHacker {
     private static final String TAG = "NativeHacker";
@@ -58,4 +59,12 @@ public class NativeHacker {
     private static native int nativeUnhook();
 
     private static native void nativeDumpRecords(String pathname);
+
+    public static void onError() {
+        Log.d(TAG, "onError() called\n" + Log.getStackTraceString(new Throwable()));
+    }
+
+    public static void onHandleSignal() {
+        Log.e(TAG, "onHandleSignal() called\n" + Log.getStackTraceString(new Throwable()));
+    }
 }

@@ -1,0 +1,14 @@
+//
+// Created by pika on 2023/1/6.
+//
+
+#include <jni.h>
+#include "mooner_exception.h"
+
+
+
+void handle_exception(JNIEnv *env) {
+    jclass main = (*env)->FindClass(env, HACKER_JNI_CLASS_NAME);
+    jmethodID id = (*env)->GetStaticMethodID(env, main, HACKER_JNI_ERROR_HANDLER, "()V");
+    (*env)->CallStaticVoidMethod(env, main, id);
+}

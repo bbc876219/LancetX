@@ -4,7 +4,12 @@ project(nativehook)
 find_package(bytehook REQUIRED CONFIG)
 
 # libhacker.so
-add_library(hacker SHARED hacker.c)
+add_library(
+        hacker
+        SHARED
+        hacker.c
+        mooner_exception.c
+)
 target_compile_features(hacker PUBLIC c_std_11)
 target_compile_options(hacker PUBLIC -Weverything -Werror)
 target_link_libraries(hacker bytehook::bytehook log)
