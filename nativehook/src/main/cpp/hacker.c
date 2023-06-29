@@ -13,11 +13,15 @@
 
 #define HACKER_JNI_VERSION    JNI_VERSION_1_6
 #define HACKER_JNI_CLASS_NAME "com/bbc/NativeHacker"
-#define HACKER_TAG            "bytehook_tag"
+#define HACKER_TAG            "hook_tag"
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
-#define LOG(fmt, ...) __android_log_print(ANDROID_LOG_INFO, HACKER_TAG, fmt, ##__VA_ARGS__)
+#define LOGIT(tag, fmt, ...) __android_log_print(ANDROID_LOG_INFO, tag, fmt, ##__VA_ARGS__)
+#define LOGI(fmt, ...) __android_log_print(ANDROID_LOG_INFO, HACKER_TAG, fmt, ##__VA_ARGS__)
+#define LOGW(fmt, ...) __android_log_print(ANDROID_LOG_WARN, HACKER_TAG, fmt, ##__VA_ARGS__)
+#define LOGD(fmt, ...) __android_log_print(ANDROID_LOG_DEBUG, HACKER_TAG, fmt, ##__VA_ARGS__)
+//#define LOGE(fmt, ...) __android_log_print(ANDROID_LOG_ERROR, HACKER_TAG, fmt, ##__VA_ARGS__)
 #pragma clang diagnostic pop
 
 // 原本线程参数
@@ -60,9 +64,9 @@ typedef int (*pthread_setname_np_t)(pthread_t, const char *);
                                    const char *sym_name, void *new_func, void *prev_func, void *arg) {       \
     if (BYTEHOOK_STATUS_CODE_ORIG_ADDR == status_code) {                                                     \
       fn##_prev = (fn##_t)prev_func;                                                                         \
-      if(bytehook_get_debug()) LOG(">>>>> save original address: %" PRIxPTR, (uintptr_t)prev_func);                                   \
+      if(bytehook_get_debug()) LOGI(">>>>> save original address: %" PRIxPTR, (uintptr_t)prev_func);                                   \
     } else {                                                                                                 \
-      if(bytehook_get_debug()) LOG(">>>>> hooked. stub: %" PRIxPTR                                                                    \
+      if(bytehook_get_debug()) LOGIT("hooked",">>>>> hooked. stub: %" PRIxPTR                                                                    \
           ", status: %d, caller_path_name: %s, sym_name: %s, new_func: %" PRIxPTR ", prev_func: %" PRIxPTR   \
           ", arg: %" PRIxPTR,                                                                                \
           (uintptr_t)task_stub, status_code, caller_path_name, sym_name, (uintptr_t)new_func,                \
@@ -93,9 +97,10 @@ static void debug(const char *sym, const char *pathname, int flags, int fd, void
     memset(&info, 0, sizeof(info));
     dladdr(lr, &info);
 
-    LOG("proxy %s(\"%s\", %d), return FD: %d, called from: %s (%s)", sym, pathname, flags, fd,
-        info.dli_fname,
-        info.dli_sname);
+    LOGIT(sym, "proxy %s(%d    \"%s\", %d), return FD: %d, called from: %s (%s)", sym, fd, pathname,
+          flags, fd,
+          info.dli_fname,
+          info.dli_sname);
 }
 
 static void debug_close(const char *sym, int flags, int fd, void *lr) {
@@ -103,8 +108,8 @@ static void debug_close(const char *sym, int flags, int fd, void *lr) {
     memset(&info, 0, sizeof(info));
     dladdr(lr, &info);
 
-    LOG("proxy %s( %d), return RS: %d, called from: %s (%s)", sym, fd, flags, info.dli_fname,
-        info.dli_sname);
+    LOGIT(sym, "proxy %s( %d), return RS: %d, called from: %s (%s)", sym, fd, flags, info.dli_fname,
+          info.dli_sname);
 }
 
 static void
@@ -113,9 +118,10 @@ debug_thread_setname(const char *sym, int flags, pthread_t pt, const char *name,
     memset(&info, 0, sizeof(info));
     dladdr(lr, &info);
 
-    LOG("proxy %s(%s), return RS: %d, pthread_t：%ld called from: %s (%s)", sym, name, flags, pt,
-        info.dli_fname,
-        info.dli_sname);
+    LOGIT(sym, "proxy %s(%s), return RS: %d, pthread_t：%ld called from: %s (%s)", sym, name, flags,
+          pt,
+          info.dli_fname,
+          info.dli_sname);
 }
 
 static void debug_thread(const char *sym, int flags, pthread_t pt, void *lr) {
@@ -123,9 +129,19 @@ static void debug_thread(const char *sym, int flags, pthread_t pt, void *lr) {
     memset(&info, 0, sizeof(info));
     dladdr(lr, &info);
 
-    LOG("proxy %s(), return RS: %d, pthread_t：%ld called from: %s (%s)", sym, flags, pt,
-        info.dli_fname,
-        info.dli_sname);
+    LOGD("proxy %s(), return RS: %d, pthread_t：%ld called from: %s (%s)", sym, flags, pt,
+         info.dli_fname,
+         info.dli_sname);
+}
+
+static void debug_thread_create(const char *sym, int flags, pthread_t pt, void *lr) {
+    Dl_info info;
+    memset(&info, 0, sizeof(info));
+    dladdr(lr, &info);
+
+    LOGW("proxy %s(), return RS: %d, pthread_t：%ld called from: %s (%s)", sym, flags, pt,
+         info.dli_fname,
+         info.dli_sname);
 }
 
 static int open_proxy_auto(const char *pathname, int flags, mode_t modes) {
@@ -218,7 +234,7 @@ static int pthread_create_proxy_auto(pthread_t *thread, pthread_attr_t *attr,
                                 start_routine, (void *) arg);
     //int rs = BYTEHOOK_CALL_PREV(pthread_create_proxy_auto,pthread_create_t, thread, attr,pthread,(void *) params);
     if (bytehook_get_debug()) {
-        debug_thread("pthread_create", rs, (pthread_t) thread, BYTEHOOK_RETURN_ADDRESS());
+        debug_thread_create("pthread_create", rs, (pthread_t) thread, BYTEHOOK_RETURN_ADDRESS());
     }
     BYTEHOOK_POP_STACK();
 
