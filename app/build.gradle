@@ -26,37 +26,79 @@ LancetX {
             enable false
         }
         replaceNewTest {
-            enable(false)
+            enable(true)
         }
         ExtendTest {
-            enable false
+            enable true
         }
     }
 }
 
 android {
-    compileSdk 32
+    compileSdkVersion rootProject.ext.compileSdkVersion
+    buildToolsVersion rootProject.ext.buildToolsVersion
+    ndkVersion rootProject.ext.ndkVersion
 
     defaultConfig {
-        applicationId "com.knightboost.lancetx"
-        minSdk 21
-        targetSdk 32
+        applicationId "com.hdquantum.android.slowdoctor"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+
         versionCode 1
         versionName "1.0"
         ndk {
-            abiFilters 'armeabi-v7a', 'arm64-v8a'
+            abiFilters rootProject.ext.abiFilters.split(",")
+        }
+        externalNativeBuild {
+            cmake {
+                abiFilters rootProject.ext.abiFilters.split(",")
+            }
         }
     }
+    externalNativeBuild {
+        cmake {
+            path "src/main/cpp/CMakeLists.txt"
+            println("path=$path")
+            version rootProject.ext.cmakeVersion
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+    signingConfigs {
+        release {
+            storeFile file("${STORE_FILE}")
+            storePassword "${STORE_PWD}"
+            keyAlias "${KEY_ALIAS}"
+            keyPassword "${KEY_PWD}"
+            v1SigningEnabled true
+            v2SigningEnabled true
+        }
 
+    }
     buildTypes {
         release {
+            signingConfig signingConfigs.release
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
         debug {
+            signingConfig signingConfigs.release
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
+    }
+    packagingOptions {
+        jniLibs {
+            pickFirsts += ['**/libbytehook.so']
+        }
+        if (rootProject.ext.useASAN) {
+            doNotStrip "**/*.so"
+        }
+    }
+    buildFeatures {
+        prefab true
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
@@ -75,8 +117,10 @@ dependencies {
     implementation 'com.google.android.material:material:1.5.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.3'
     api 'me.weishu:epic:0.11.3'
+    implementation 'com.bytedance:bytehook:1.0.9'
     implementation project(path: ':lancet-runtime')
     implementation project(path: ':monitormodel')
+    implementation project(path: ':nativehook')
 
 }
-
+apply from: rootProject.file('sanitizer.gradle')
