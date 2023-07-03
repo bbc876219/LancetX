@@ -52,181 +52,190 @@ public class BaseApplication extends Application {
 
     protected void attachBaseContext(Context base) {
         super.attachBaseContext(base);
+        NativeHacker.isDebug = true;
+        NativeHacker.init();
+        NativeHacker.unhook();
+
+        try {
+            NativeHacker.hook(-2);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
 
         //initStrictMode();
-        if (Build.VERSION.SDK_INT <= 31) {
-            hookByDexposed();
-            pictureMonitor();
-            class ThreadMethodHook extends XC_MethodHook {
-                long start = 0L;
-
-                @Override
-                protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
-                    super.beforeHookedMethod(param);
-                    start = System.currentTimeMillis();
-                    Thread t = (Thread) param.thisObject;
-                    Log.i(TAG, "thread:" + t + ".run(), started..\n" + getStackTrace(new Throwable(), 5, 3));
-                }
-
-                @Override
-                protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-                    super.afterHookedMethod(param);
-                    Thread t = (Thread) param.thisObject;
-                    Log.i(TAG, "thread:" + t + ".run(), exit..  cost:" + (System.currentTimeMillis() - start));
-                }
-            }
-
-            DexposedBridge.hookAllConstructors(Thread.class, new XC_MethodHook() {
-                @Override
-                protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-                    super.afterHookedMethod(param);
-                    Thread thread = (Thread) param.thisObject;
-                    Class<?> clazz = thread.getClass();
-                    if (clazz != Thread.class) {
-                        Log.d(TAG, "found class extend Thread:" + clazz);
-                        DexposedBridge.findAndHookMethod(clazz, "run", new ThreadMethodHook());
-                    }
-                    Log.d(TAG, "Thread: " + thread.getName() + " class:" + thread.getClass() + " is created.\n"
-                            + getStackTrace(new Throwable(), 0)
-                    );
-                }
-            });
-            DexposedBridge.findAndHookMethod(Thread.class, "run", new ThreadMethodHook());
-            try {
-                DexposedBridge.findAndHookMethod(Class.forName("android.os.BinderProxy"), "transact",
-                        int.class, Parcel.class, Parcel.class, int.class, new XC_MethodHook() {
-                            private long start = 0L;
-                            private String methodName = "";
-
-                            @Override
-                            protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
-//                                Log.i(TAG, "BinderProxy.transact beforeHookedMethod " + param.thisObject.getClass().getSimpleName()
-//                                        //+ "\n" + getStackTrace(new Throwable())
-//                                );
-                                //methodName = getBinderProxyMethodNameFormStackMsg(new Throwable());
-                                methodName = getStackTrace(new Throwable(), 5, 1);
-                                start = System.currentTimeMillis();
-                                super.beforeHookedMethod(param);
-                            }
-
-                            @Override
-                            protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-                                super.afterHookedMethod(param);
-                                long cost=(System.currentTimeMillis() - start);
-                                if (cost>5) {
-                                    Log.i(TAG, String.format("BinderProxy.transact afterHookedMethod exit. cost:%s  methodName=%s", cost, methodName));
-                                }
-                            }
-                        });
-            } catch (ClassNotFoundException e) {
-                e.printStackTrace();
-            }
-            DexposedBridge.findAndHookMethod(DexFile.class, "loadDex", String.class, String.class, int.class, new XC_MethodHook() {
-                long start = 0L;
-
-                @Override
-                protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
-                    super.beforeHookedMethod(param);
-                    start = System.currentTimeMillis();
-
-                }
-
-                @Override
-                protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-                    super.afterHookedMethod(param);
-                    String dex = (String) param.args[0];
-                    String odex = (String) param.args[1];
-                    Log.i(TAG, String.format("DexFile.loadDex.afterHookedMethod exit.. cost:%s   input:%s   out:%s \n%s", (System.currentTimeMillis() - start), dex, odex, getStackTrace(new Throwable(), 3, 1)));
-                }
-            });
-            try {
-                DexposedBridge.findAndHookMethod(Class.forName("java.lang.ClassLoader"), "findClass",
-                        java.lang.String.class, new XC_MethodHook() {
-                            @Override
-                            protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
-                                String name = (String) param.args[0];
-                                Log.i(TAG, "app start loaded class: " + name
-                                        + "\n" + Log.getStackTraceString(new Throwable()));
-                                super.beforeHookedMethod(param);
-                            }
-                        });
-            } catch (ClassNotFoundException e) {
-                e.printStackTrace();
-            }
-            DexposedBridge.findAndHookMethod(WebView.class, "loadUrl", String.class, new XC_MethodHook() {
-                @Override
-                protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
-                    Log.e("epic.hook", "loadUrl:" + param.args[0]);
-                }
-            });
-//            String SQLiteDatabaseClass = "com.tencent.wcdb.database.SQLiteDatabase";
-//            try {
-//                Class cls = ClassUtils.getClass(SQLiteDatabaseClass);
-//                DexposedBridge.findAndHookMethod(cls, "rawQueryWithFactory",
-//                        SQLiteDatabaseClass + ".CursorFactory", String.class, Object[].class, String.class, "com.tencent.wcdb.support.CancellationSignal",
-//                        new XC_MethodHook() {
-//                            @Override
-//                            protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
-//                                Log.e("rawQueryWithFactory", param.args[1] + ":" + param.args[3]);
-//                            }
-//                        });
-//            } catch (Exception e) {
-//                e.printStackTrace();
-//            }
-            DexposedBridge.findAndHookMethod(TelephonyManager.class, "getDeviceId", new XC_MethodHook() {
-                @Override
-                protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
-                    super.beforeHookedMethod(param);
-                    String className = param.method.getDeclaringClass().getName();
-                    String methodName = param.method.getName();
-                    Log.i(TAG, "检测到风险函数被调用: " + className + "#" + methodName);
-                    Log.d(TAG, getStackTrace(new Throwable(), 3));
-                }
-
-                @Override
-                protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-                    super.afterHookedMethod(param);
-                    Log.d(TAG, "afterHookedMethod getDeviceId");
-                }
-            });
-//            DexposedBridge.findAndHookMethod(Activity.class, "onCreate", Bundle.class, new XC_MethodReplacement() {
+//        if (Build.VERSION.SDK_INT <= 31) {
+//            hookByDexposed();
+//            pictureMonitor();
+//            class ThreadMethodHook extends XC_MethodHook {
+//                long start = 0L;
 //
-//                @Override protected Object replaceHookedMethod(MethodHookParam param) throws Throwable {
-//                    // Re-writing the method logic outside the original method context is a bit tricky but still viable.
-//				//...
-//                    return null;
-//                }
-//
-//            });
-            // Target class, method with parameter types, followed by the hook callback (XC_MethodHook).
-//            DexposedBridge.findAndHookMethod(Activity.class, "onCreate", Bundle.class, new XC_MethodHook() {
-//
-//                // To be invoked before Activity.onCreate().
 //                @Override
 //                protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
-//                    // "thisObject" keeps the reference to the instance of target class.
-//                    Activity instance = (Activity) param.thisObject;
-//
-//                    // The array args include all the parameters.
-//                    Bundle bundle = (Bundle) param.args[0];
-//                    Intent intent = new Intent();
-//                    // XposedHelpers provide useful utility methods.
-//                    XposedHelpers.setObjectField(param.thisObject, "mIntent", intent);
-//
-//                    // Calling setResult() will bypass the original method body use the result as method return value directly.
-////                    if (bundle.containsKey("return"))
-////                        param.setResult(null);
+//                    super.beforeHookedMethod(param);
+//                    start = System.currentTimeMillis();
+//                    Thread t = (Thread) param.thisObject;
+//                    Log.i(TAG, "thread:" + t + ".run(), started..\n" + getStackTrace(new Throwable(), 5, 3));
 //                }
 //
-//                // To be invoked after Activity.onCreate()
 //                @Override
 //                protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-//                    XposedHelpers.callMethod(param.thisObject, "sampleMethod", 2);
+//                    super.afterHookedMethod(param);
+//                    Thread t = (Thread) param.thisObject;
+//                    Log.i(TAG, "thread:" + t + ".run(), exit..  cost:" + (System.currentTimeMillis() - start));
+//                }
+//            }
+//
+//            DexposedBridge.hookAllConstructors(Thread.class, new XC_MethodHook() {
+//                @Override
+//                protected void afterHookedMethod(MethodHookParam param) throws Throwable {
+//                    super.afterHookedMethod(param);
+//                    Thread thread = (Thread) param.thisObject;
+//                    Class<?> clazz = thread.getClass();
+//                    if (clazz != Thread.class) {
+//                        Log.d(TAG, "found class extend Thread:" + clazz);
+//                        DexposedBridge.findAndHookMethod(clazz, "run", new ThreadMethodHook());
+//                    }
+//                    Log.d(TAG, "Thread: " + thread.getName() + " class:" + thread.getClass() + " is created.\n"
+//                            + getStackTrace(new Throwable(), 0)
+//                    );
 //                }
 //            });
-//            proxyArrayList_grow();
-//            proxyHashMap_resize();
-        }
+//            DexposedBridge.findAndHookMethod(Thread.class, "run", new ThreadMethodHook());
+//            try {
+//                DexposedBridge.findAndHookMethod(Class.forName("android.os.BinderProxy"), "transact",
+//                        int.class, Parcel.class, Parcel.class, int.class, new XC_MethodHook() {
+//                            private long start = 0L;
+//                            private String methodName = "";
+//
+//                            @Override
+//                            protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+////                                Log.i(TAG, "BinderProxy.transact beforeHookedMethod " + param.thisObject.getClass().getSimpleName()
+////                                        //+ "\n" + getStackTrace(new Throwable())
+////                                );
+//                                //methodName = getBinderProxyMethodNameFormStackMsg(new Throwable());
+//                                methodName = getStackTrace(new Throwable(), 5, 1);
+//                                start = System.currentTimeMillis();
+//                                super.beforeHookedMethod(param);
+//                            }
+//
+//                            @Override
+//                            protected void afterHookedMethod(MethodHookParam param) throws Throwable {
+//                                super.afterHookedMethod(param);
+//                                long cost=(System.currentTimeMillis() - start);
+//                                if (cost>5) {
+//                                    Log.i(TAG, String.format("BinderProxy.transact afterHookedMethod exit. cost:%s  methodName=%s", cost, methodName));
+//                                }
+//                            }
+//                        });
+//            } catch (ClassNotFoundException e) {
+//                e.printStackTrace();
+//            }
+//            DexposedBridge.findAndHookMethod(DexFile.class, "loadDex", String.class, String.class, int.class, new XC_MethodHook() {
+//                long start = 0L;
+//
+//                @Override
+//                protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+//                    super.beforeHookedMethod(param);
+//                    start = System.currentTimeMillis();
+//
+//                }
+//
+//                @Override
+//                protected void afterHookedMethod(MethodHookParam param) throws Throwable {
+//                    super.afterHookedMethod(param);
+//                    String dex = (String) param.args[0];
+//                    String odex = (String) param.args[1];
+//                    Log.i(TAG, String.format("DexFile.loadDex.afterHookedMethod exit.. cost:%s   input:%s   out:%s \n%s", (System.currentTimeMillis() - start), dex, odex, getStackTrace(new Throwable(), 3, 1)));
+//                }
+//            });
+//            try {
+//                DexposedBridge.findAndHookMethod(Class.forName("java.lang.ClassLoader"), "findClass",
+//                        java.lang.String.class, new XC_MethodHook() {
+//                            @Override
+//                            protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+//                                String name = (String) param.args[0];
+//                                Log.i(TAG, "app start loaded class: " + name
+//                                        + "\n" + Log.getStackTraceString(new Throwable()));
+//                                super.beforeHookedMethod(param);
+//                            }
+//                        });
+//            } catch (ClassNotFoundException e) {
+//                e.printStackTrace();
+//            }
+//            DexposedBridge.findAndHookMethod(WebView.class, "loadUrl", String.class, new XC_MethodHook() {
+//                @Override
+//                protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+//                    Log.e("epic.hook", "loadUrl:" + param.args[0]);
+//                }
+//            });
+////            String SQLiteDatabaseClass = "com.tencent.wcdb.database.SQLiteDatabase";
+////            try {
+////                Class cls = ClassUtils.getClass(SQLiteDatabaseClass);
+////                DexposedBridge.findAndHookMethod(cls, "rawQueryWithFactory",
+////                        SQLiteDatabaseClass + ".CursorFactory", String.class, Object[].class, String.class, "com.tencent.wcdb.support.CancellationSignal",
+////                        new XC_MethodHook() {
+////                            @Override
+////                            protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+////                                Log.e("rawQueryWithFactory", param.args[1] + ":" + param.args[3]);
+////                            }
+////                        });
+////            } catch (Exception e) {
+////                e.printStackTrace();
+////            }
+//            DexposedBridge.findAndHookMethod(TelephonyManager.class, "getDeviceId", new XC_MethodHook() {
+//                @Override
+//                protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+//                    super.beforeHookedMethod(param);
+//                    String className = param.method.getDeclaringClass().getName();
+//                    String methodName = param.method.getName();
+//                    Log.i(TAG, "检测到风险函数被调用: " + className + "#" + methodName);
+//                    Log.d(TAG, getStackTrace(new Throwable(), 3));
+//                }
+//
+//                @Override
+//                protected void afterHookedMethod(MethodHookParam param) throws Throwable {
+//                    super.afterHookedMethod(param);
+//                    Log.d(TAG, "afterHookedMethod getDeviceId");
+//                }
+//            });
+////            DexposedBridge.findAndHookMethod(Activity.class, "onCreate", Bundle.class, new XC_MethodReplacement() {
+////
+////                @Override protected Object replaceHookedMethod(MethodHookParam param) throws Throwable {
+////                    // Re-writing the method logic outside the original method context is a bit tricky but still viable.
+////				//...
+////                    return null;
+////                }
+////
+////            });
+//            // Target class, method with parameter types, followed by the hook callback (XC_MethodHook).
+////            DexposedBridge.findAndHookMethod(Activity.class, "onCreate", Bundle.class, new XC_MethodHook() {
+////
+////                // To be invoked before Activity.onCreate().
+////                @Override
+////                protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+////                    // "thisObject" keeps the reference to the instance of target class.
+////                    Activity instance = (Activity) param.thisObject;
+////
+////                    // The array args include all the parameters.
+////                    Bundle bundle = (Bundle) param.args[0];
+////                    Intent intent = new Intent();
+////                    // XposedHelpers provide useful utility methods.
+////                    XposedHelpers.setObjectField(param.thisObject, "mIntent", intent);
+////
+////                    // Calling setResult() will bypass the original method body use the result as method return value directly.
+//////                    if (bundle.containsKey("return"))
+//////                        param.setResult(null);
+////                }
+////
+////                // To be invoked after Activity.onCreate()
+////                @Override
+////                protected void afterHookedMethod(MethodHookParam param) throws Throwable {
+////                    XposedHelpers.callMethod(param.thisObject, "sampleMethod", 2);
+////                }
+////            });
+////            proxyArrayList_grow();
+////            proxyHashMap_resize();
+//        }
 
     }
 

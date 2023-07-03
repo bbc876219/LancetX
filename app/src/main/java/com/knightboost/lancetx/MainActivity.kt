@@ -19,10 +19,7 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         System.loadLibrary("hookee") // test for load-before-init
 
-        NativeHacker.isDebug = true
-        NativeHacker.init()
-        NativeHacker.unhook()
-        NativeHacker.hook(2)
+
         setContentView(R.layout.activity_main)
         ImplA().testMethod()
         ClassA().printMessage("haha!")
@@ -60,8 +57,11 @@ class MainActivity : AppCompatActivity() {
 
         }
         button3.setOnClickListener {
+           val thread= Thread(Runnable { -> NativeHookee.test() })
+            thread.name="nativetest"
+               thread.start()
 
-            NativeHookee.test();
+//            NativeHookee.test();
             //HandlerThreadTest().start()
 
         }

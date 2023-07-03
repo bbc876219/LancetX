@@ -7,7 +7,7 @@
 
 #define HOOKEE_JNI_VERSION    JNI_VERSION_1_6
 #define HOOKEE_JNI_CLASS_NAME "com/bbc/NativeHookee"
-#define HOOKEE_TAG            "bytehook_tag"
+#define HOOKEE_TAG            "native_test"
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
@@ -42,7 +42,7 @@ static void thread_1(void) {
     while (1) {
         i += 1;
         sleep(1);
-        LOG("2B我是线程一 %d次\n", i);
+        LOG("我是线程一 %d次\n", i);
         if (i > 5) {
             break;
         }
@@ -52,10 +52,20 @@ static void thread_1(void) {
 
 }
 
+
+
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wmissing-noreturn"
 static void thread_2(void) {
 
     int i = 0;
-    LOG("我是线程二 开始");
+
+
+//    pthread_t th=pthread_self();
+
+
+    //LOG("我是线程二 开始   pthread_self()=%ld, tid:%d", th, pthread_gettid_np(th));
     while (1) {
         i += 1;
         sleep(2);
@@ -65,13 +75,15 @@ static void thread_2(void) {
         }
     }
     LOG("我是线程二 结束");
+    pthread_exit(NULL);
 }
+#pragma clang diagnostic pop
 
 
 static void thread_3(void) {
 
     int i = 0;
-    LOG("2B我是线程三 开始");
+    LOG("我是线程三 开始");
     while (3) {
         i += 1;
         sleep(3);
@@ -80,7 +92,7 @@ static void thread_3(void) {
             break;
         }
     }
-    LOG("2B我是线程三 结束");
+    LOG("我是线程三 结束");
 
 }
 
