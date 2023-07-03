@@ -9,6 +9,7 @@
 #include <sys/time.h>
 #include <unistd.h>
 #include <setjmp.h>
+#include <pthread.h>
 #include "mooner_exception.h"
 #include "bytehook.h"
 
@@ -20,12 +21,37 @@
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
+///** Verbose logging. Should typically be disabled for a release apk. */
+//ANDROID_LOG_VERBOSE,
+///** Debug logging. Should typically be disabled for a release apk. */
+//ANDROID_LOG_DEBUG,
+///** Informational logging. Should typically be disabled for a release apk. */
+//ANDROID_LOG_INFO,
+///** Warning logging. For use with recoverable failures. */
+//ANDROID_LOG_WARN,
+///** Error logging. For use with unrecoverable failures. */
+//ANDROID_LOG_ERROR,
+///** Fatal logging. For use when aborting. */
+//ANDROID_LOG_FATAL,
+#define LOGVT(tag, fmt, ...) __android_log_print(ANDROID_LOG_VERBOSE, tag, fmt, ##__VA_ARGS__)
+#define LOGV(fmt, ...) __android_log_print(ANDROID_LOG_VERBOSE, HACKER_TAG, fmt, ##__VA_ARGS__)
+#define LOGDT(tag, fmt, ...) __android_log_print(ANDROID_LOG_DEBUG, tag, fmt, ##__VA_ARGS__)
+#define LOGD(fmt, ...) __android_log_print(ANDROID_LOG_DEBUG, HACKER_TAG, fmt, ##__VA_ARGS__)
 #define LOGIT(tag, fmt, ...) __android_log_print(ANDROID_LOG_INFO, tag, fmt, ##__VA_ARGS__)
 #define LOGI(fmt, ...) __android_log_print(ANDROID_LOG_INFO, HACKER_TAG, fmt, ##__VA_ARGS__)
+#define LOGWT(tag, fmt, ...) __android_log_print(ANDROID_LOG_WARN, tag, fmt, ##__VA_ARGS__)
 #define LOGW(fmt, ...) __android_log_print(ANDROID_LOG_WARN, HACKER_TAG, fmt, ##__VA_ARGS__)
-#define LOGD(fmt, ...) __android_log_print(ANDROID_LOG_DEBUG, HACKER_TAG, fmt, ##__VA_ARGS__)
 #define LOGE(fmt, ...) __android_log_print(ANDROID_LOG_ERROR, HACKER_TAG, fmt, ##__VA_ARGS__)
 #pragma clang diagnostic pop
+static bool isHookOpen = false;
+static bool isHookClose = false;
+static bool isHookPTheadCreate = true;
+static bool isHookPTheadRun = true;
+static bool isHookPTheadSetName = true;
+static bool isHookPTheadExit = false;
+static bool isHookPTheadDetach = false;
+static bool isHookPTheadJoin = false;
+static bool isInterceptCrash = true;
 
 // 原本线程参数
 struct ThreadHookeeArgus {
@@ -33,38 +59,76 @@ struct ThreadHookeeArgus {
 
     void *current_arg;
 };
+
 #define HACKER_JNI_HANDLER "onHandleSignal"
 #define SIGNAL_CRASH_STACK_SIZE (1024 * 128)
 static sigjmp_buf sig_env;
 static volatile int handleFlag = 0;
 static JNIEnv *currentEnv;
 static struct sigaction old;
-extern JavaVM  *currentVm;
-extern jclass callClass ;
+
+static void run(const struct ThreadHookeeArgus *temp);
+
+extern JavaVM *currentVm;
+extern jclass callClass;
 JavaVM *currentVm = NULL;
 jclass callClass = NULL;
+
+
+static long long currentTimeInMilliseconds(void) {
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return ((tv.tv_sec * 1000) + (tv.tv_usec / 1000));
+}
+
+
 static void *pthread(void *arg) {
     JavaVMAttachArgs vmAttachArgs;
     jmethodID id;
     struct ThreadHookeeArgus *temp = (struct ThreadHookeeArgus *) arg;
-    if (sigsetjmp(sig_env, 1)) {
-        LOGE(  "crash 了，但被我抓住了");
+    if (isInterceptCrash) {
+        if (sigsetjmp(sig_env, 1)) {
+            LOGE("crash 了，但被我抓住了");
 
-        vmAttachArgs.version = HACKER_JNI_VERSION;
-        vmAttachArgs.name = NULL;
-        vmAttachArgs.group = NULL;
-        __attribute__((unused)) jint attachRet = (*currentVm)->AttachCurrentThread(currentVm, (JNIEnv **) &currentEnv, &vmAttachArgs);
-        // 现在处于native子线程，默认是booster加载器
-         id = (*currentEnv)->GetStaticMethodID(currentEnv, callClass,HACKER_JNI_HANDLER, "()V");
-        (*currentEnv)->CallStaticVoidMethod(currentEnv, callClass, id);
+            vmAttachArgs.version = HACKER_JNI_VERSION;
+            vmAttachArgs.name = NULL;
+            vmAttachArgs.group = NULL;
+            __attribute__((unused)) jint attachRet = (*currentVm)->AttachCurrentThread(currentVm,
+                                                                                       (JNIEnv **) &currentEnv,
+                                                                                       &vmAttachArgs);
+            // 现在处于native子线程，默认是booster加载器
+            id = (*currentEnv)->GetStaticMethodID(currentEnv, callClass, HACKER_JNI_HANDLER, "()V");
+            (*currentEnv)->CallStaticVoidMethod(currentEnv, callClass, id);
+        } else {
+            run(temp);
+        }
     } else {
-        temp->current_func(temp->current_arg);
+        run(temp);
     }
     handleFlag = 0;
     return NULL;
 }
+
+static void run(const struct ThreadHookeeArgus *temp) {
+    if (isHookPTheadRun) {
+        pthread_t th = pthread_self();
+        int tid = pthread_gettid_np(th);
+        long start = currentTimeInMilliseconds();
+
+        if (bytehook_get_debug())
+            LOGWT("pthread.run", "thread start self()=%ld, tid:%d", th, tid);
+        temp->current_func(temp->current_arg);
+        long end = currentTimeInMilliseconds();
+        if (bytehook_get_debug())
+            LOGWT("pthread.run", "thread end self()=%ld,tid:%d,cost: %ld", th, tid,(end - start));
+    } else {
+        temp->current_func(temp->current_arg);
+    }
+}
+
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunused-parameter"
+
 static void sig_handler(int sig, struct siginfo *info, void *ptr) {
 
     if (handleFlag == 1) {
@@ -74,7 +138,9 @@ static void sig_handler(int sig, struct siginfo *info, void *ptr) {
         sigaction(sig, &old, NULL);
     }
 }
+
 #pragma clang diagnostic pop
+
 typedef int (*open_t)(const char *, int, mode_t);
 
 typedef int (*open_real_t)(const char *, int, mode_t);
@@ -101,9 +167,9 @@ typedef int (*pthread_setname_np_t)(pthread_t, const char *);
                                    const char *sym_name, void *new_func, void *prev_func, void *arg) {       \
     if (BYTEHOOK_STATUS_CODE_ORIG_ADDR == status_code) {                                                     \
       fn##_prev = (fn##_t)prev_func;                                                                         \
-      if(bytehook_get_debug()) LOGI(">>>>> save original address: %" PRIxPTR, (uintptr_t)prev_func);                                   \
+      if(bytehook_get_debug()) LOGV(">>>>> save original address: %" PRIxPTR, (uintptr_t)prev_func);                                   \
     } else {                                                                                                 \
-      if(bytehook_get_debug()) LOGIT("hooked",">>>>> hooked. stub: %" PRIxPTR                                                                    \
+      if(bytehook_get_debug()) LOGVT("hooked",">>>>> hooked. stub: %" PRIxPTR                                                                    \
           ", status: %d, caller_path_name: %s, sym_name: %s, new_func: %" PRIxPTR ", prev_func: %" PRIxPTR   \
           ", arg: %" PRIxPTR,                                                                                \
           (uintptr_t)task_stub, status_code, caller_path_name, sym_name, (uintptr_t)new_func,                \
@@ -129,6 +195,7 @@ OPEN_DEF(pthread_create)
 OPEN_DEF(pthread_setname_np)
 
 static bytehook_stub_t pthread_create_single_stub = NULL;
+
 static void debug(const char *sym, const char *pathname, int flags, int fd, void *lr) {
     Dl_info info;
     memset(&info, 0, sizeof(info));
@@ -155,10 +222,10 @@ debug_thread_setname(const char *sym, int flags, pthread_t pt, const char *name,
     memset(&info, 0, sizeof(info));
     dladdr(lr, &info);
 
-    LOGIT(sym, "proxy %s(%s), return RS: %d, pthread_t：%ld called from: %s (%s)", sym, name, flags,
-          pt,
-          info.dli_fname,
-          info.dli_sname);
+    LOGI("proxy %s(%s), return RS: %d, pthread_t：%ld called from: %s (%s)", sym, name, flags,
+         pt,
+         info.dli_fname,
+         info.dli_sname);
 }
 
 static void debug_thread(const char *sym, int flags, pthread_t pt, void *lr) {
@@ -166,9 +233,9 @@ static void debug_thread(const char *sym, int flags, pthread_t pt, void *lr) {
     memset(&info, 0, sizeof(info));
     dladdr(lr, &info);
 
-    LOGD("proxy %s(), return RS: %d, pthread_t：%ld called from: %s (%s)", sym, flags, pt,
-         info.dli_fname,
-         info.dli_sname);
+    LOGDT(sym, "proxy %s(), return RS: %d, pthread_t：%ld called from: %s (%s)", sym, flags, pt,
+          info.dli_fname,
+          info.dli_sname);
 }
 
 static void debug_thread_create(const char *sym, int flags, pthread_t pt, void *lr) {
@@ -176,7 +243,8 @@ static void debug_thread_create(const char *sym, int flags, pthread_t pt, void *
     memset(&info, 0, sizeof(info));
     dladdr(lr, &info);
 
-    LOGW("proxy %s(), return RS: %d, pthread_t：%ld called from: %s (%s)", sym, flags, pt,
+    LOGD("proxy %s(), return RS: %d, pthread_self()：%ld  called from: %s (%s)", sym,
+         flags, pt,
          info.dli_fname,
          info.dli_sname);
 }
@@ -261,32 +329,16 @@ static void pthread_exit_proxy_auto(void *return_value) {
 
 static int pthread_create_proxy_auto(pthread_t *thread, pthread_attr_t *attr,
                                      void *(*start_routine)(void *), void *arg) {
-//  struct ThreadHookeeArgus *params;
-//  params = (struct ThreadHookeeArgus *) malloc(sizeof(struct ThreadHookeeArgus));
-//  params->current_func = start_routine;
-//  params->current_arg = arg;
-
-//  __android_log_print(ANDROID_LOG_INFO, HACKER_TAG, "%s", "call pthread_create");
-    int rs = BYTEHOOK_CALL_PREV(pthread_create_proxy_auto, pthread_create_t, thread, attr,
-                                start_routine, (void *) arg);
-    //int rs = BYTEHOOK_CALL_PREV(pthread_create_proxy_auto,pthread_create_t, thread, attr,pthread,(void *) params);
-    if (bytehook_get_debug()) {
-        debug_thread_create("pthread_create", rs, (pthread_t) thread, BYTEHOOK_RETURN_ADDRESS());
-    }
-    BYTEHOOK_POP_STACK();
-
-    return rs;
-}
-static int pthread_create_proxy_auto_single(pthread_t *thread, pthread_attr_t *attr,
-                                     void *(*start_routine)(void *), void *arg) {
-    int rs =0;
     struct ThreadHookeeArgus *params;
     params = (struct ThreadHookeeArgus *) malloc(sizeof(struct ThreadHookeeArgus));
     params->current_func = start_routine;
     params->current_arg = arg;
-    handleFlag = 1;
-    //int rs = BYTEHOOK_CALL_PREV(pthread_create_proxy_auto_single, pthread_create_t, thread, attr,start_routine, (void *) arg);
-    rs = BYTEHOOK_CALL_PREV(pthread_create_proxy_auto_single,pthread_create_t, thread, attr,pthread,(void *) params);
+
+//  __android_log_print(ANDROID_LOG_INFO, HACKER_TAG, "%s", "call pthread_create");
+//    int rs = BYTEHOOK_CALL_PREV(pthread_create_proxy_auto, pthread_create_t, thread, attr,
+//                                start_routine, (void *) arg);
+    int rs = BYTEHOOK_CALL_PREV(pthread_create_proxy_auto, pthread_create_t, thread, attr, pthread,
+                                (void *) params);
     if (bytehook_get_debug()) {
         debug_thread_create("pthread_create", rs, (pthread_t) thread, BYTEHOOK_RETURN_ADDRESS());
     }
@@ -294,44 +346,39 @@ static int pthread_create_proxy_auto_single(pthread_t *thread, pthread_attr_t *a
 
     return rs;
 }
+//static int pthread_create_proxy_auto_single(pthread_t *thread, pthread_attr_t *attr,
+//                                     void *(*start_routine)(void *), void *arg) {
+//    int rs =0;
+//    struct ThreadHookeeArgus *params;
+//    params = (struct ThreadHookeeArgus *) malloc(sizeof(struct ThreadHookeeArgus));
+//    params->current_func = start_routine;
+//    params->current_arg = arg;
+//    handleFlag = 1;
+//    //int rs = BYTEHOOK_CALL_PREV(pthread_create_proxy_auto_single, pthread_create_t, thread, attr,start_routine, (void *) arg);
+//    rs = BYTEHOOK_CALL_PREV(pthread_create_proxy_auto_single,pthread_create_t, thread, attr,pthread,(void *) params);
+//    if (bytehook_get_debug()) {
+//        debug_thread_create("pthread_create", rs, (pthread_t) thread, BYTEHOOK_RETURN_ADDRESS());
+//    }
+//    BYTEHOOK_POP_STACK();
+//
+//    return rs;
+//}
 
 
-static int open_proxy_manual(const char *pathname, int flags, mode_t modes) {
-    int fd = open_prev(pathname, flags, modes);
-    debug("open", pathname, flags, fd, BYTEHOOK_RETURN_ADDRESS());
-    return fd;
-}
 
-static int open_real_proxy_manual(const char *pathname, int flags, mode_t modes) {
-    int fd = open_real_prev(pathname, flags, modes);
-    debug("__open_real", pathname, flags, fd, BYTEHOOK_RETURN_ADDRESS());
-    return fd;
-}
 
-static int open2_proxy_manual(const char *pathname, int flags) {
-    int fd = open2_prev(pathname, flags);
-    debug("__open_2", pathname, flags, fd, BYTEHOOK_RETURN_ADDRESS());
-    return fd;
-}
-
-static int close_proxy_manual(int fd) {
-    int rs = close_prev(fd);
-    debug_close("close", rs, fd, BYTEHOOK_RETURN_ADDRESS());
-    return fd;
-}
-
-static bool allow_filter(const char *caller_path_name, void *arg) {
-    (void) arg;
-
-    if (NULL != strstr(caller_path_name, "libc.so")) return false;
-    if (NULL != strstr(caller_path_name, "libbase.so")) return false;
-    if (NULL != strstr(caller_path_name, "liblog.so")) return false;
-    if (NULL != strstr(caller_path_name, "libunwindstack.so")) return false;
-    if (NULL != strstr(caller_path_name, "libutils.so")) return false;
-    // ......
-
-    return true;
-}
+//static bool allow_filter(const char *caller_path_name, void *arg) {
+//    (void) arg;
+//
+//    if (NULL != strstr(caller_path_name, "libc.so")) return false;
+//    if (NULL != strstr(caller_path_name, "libbase.so")) return false;
+//    if (NULL != strstr(caller_path_name, "liblog.so")) return false;
+//    if (NULL != strstr(caller_path_name, "libunwindstack.so")) return false;
+//    if (NULL != strstr(caller_path_name, "libutils.so")) return false;
+//    // ......
+//
+//    return true;
+//}
 
 static bool allow_filter_for_hook_all(const char *caller_path_name, void *arg) {
     (void) arg;
@@ -352,125 +399,81 @@ static int hacker_hook(JNIEnv *env, jobject thiz, jint type) {
     void *pthread_exit_proxy;
     void *pthread_create_proxy;
     void *pthread_setname_np_proxy;
-    void *pthread_create_single_proxy;
+//    void *pthread_create_single_proxy;
     struct sigaction sigc;
     (void) env, (void) thiz;
-    if (NULL != open_stub || NULL != open_real_stub || NULL != open2_stub) return -1;
-
-    //void *open_proxy, *open_real_proxy, *open2_proxy,*close_proxy;
-    if (BYTEHOOK_MODE_MANUAL == bytehook_get_mode()) {
-        open_proxy = (void *) open_proxy_manual;
-        open_real_proxy = (void *) open_real_proxy_manual;
-        open2_proxy = (void *) open2_proxy_manual;
-        close_proxy = (void *) close_proxy_manual;
-        pthread_join_proxy = (void *) pthread_join_proxy_auto;
-        pthread_detach_proxy = (void *) pthread_detach_proxy_auto;
-        pthread_exit_proxy = (void *) pthread_exit_proxy_auto;
-        pthread_create_proxy = (void *) pthread_create_proxy_auto;
-        pthread_setname_np_proxy = (void *) pthread_setname_np_proxy_auto;
-        pthread_create_single_proxy = (void *) pthread_create_proxy_auto_single;
-    } else {
-        open_proxy = (void *) open_proxy_auto;
-        open_real_proxy = (void *) open_real_proxy_auto;
-        open2_proxy = (void *) open2_proxy_auto;
-        close_proxy = (void *) close_proxy_auto;
-        pthread_join_proxy = (void *) pthread_join_proxy_auto;
-        pthread_detach_proxy = (void *) pthread_detach_proxy_auto;
-        pthread_exit_proxy = (void *) pthread_exit_proxy_auto;
-        pthread_create_proxy = (void *) pthread_create_proxy_auto;
-        pthread_setname_np_proxy = (void *) pthread_setname_np_proxy_auto;
-        pthread_create_single_proxy = (void *) pthread_create_proxy_auto_single;
+    currentEnv = env;
+    if (bytehook_get_debug()) {
+        LOGW("hacker_hook type=%d", type);
     }
+//    if (type > 2 || type < 0) {
+//        jclass clz = (*env)->FindClass(env, HACKER_JNI_CLASS_EXCPTION_NAME);
+//        if (NULL == clz) {
+//            jmethodID constructor_mid = (*env)->GetMethodID(env, clz, "<init>",
+//                                                            "(Ljava/lang/String;)V");
+//            jstring str = (*env)->NewStringUTF(env, "type is error");
+//            jthrowable jthrowable = (*env)->NewObject(env, clz, constructor_mid, str);
+//            (*env)->Throw(env, jthrowable);
+//        } else {
+//            //type =2；
+//        }
+//    }
 
-    if (0 == type) {
-        open_stub = bytehook_hook_single("libhookee.so", NULL, "open", open_proxy,
-                                         open_hooked_callback, NULL);
-        open_real_stub = bytehook_hook_single("libhookee.so", NULL, "__open_real", open_real_proxy,
-                                              open_real_hooked_callback, NULL);
-        open2_stub =
-                bytehook_hook_single("libhookee.so", NULL, "__open_2", open2_proxy,
-                                     open2_hooked_callback, NULL);
-        close_stub = bytehook_hook_single("libhookee.so", NULL, "close", close_proxy,
-                                          close_hooked_callback, NULL);
-    } else if (1 == type) {
-        open_stub =
-                bytehook_hook_partial(allow_filter, NULL, NULL, "open", open_proxy,
-                                      open_hooked_callback, NULL);
-        open_real_stub = bytehook_hook_partial(allow_filter, NULL, NULL, "__open_real",
-                                               open_real_proxy,
-                                               open_real_hooked_callback, NULL);
-        open2_stub =
-                bytehook_hook_partial(allow_filter, NULL, NULL, "__open_2", open2_proxy,
-                                      open2_hooked_callback, NULL);
-        close_stub =
-                bytehook_hook_partial(allow_filter, NULL, NULL, "close", close_proxy,
-                                      close_hooked_callback, NULL);
-        pthread_join_stub = bytehook_hook_partial(allow_filter, NULL, NULL, "pthread_join",
-                                                  pthread_join_proxy, pthread_join_hooked_callback,
-                                                  NULL);
-        pthread_detach_stub = bytehook_hook_partial(allow_filter, NULL, NULL, "pthread_detach",
-                                                    pthread_detach_proxy,
-                                                    pthread_detach_hooked_callback, NULL);
-        pthread_exit_stub = bytehook_hook_partial(allow_filter, NULL, NULL, "pthread_exit",
-                                                  pthread_exit_proxy, pthread_exit_hooked_callback,
-                                                  NULL);
-        pthread_create_stub = bytehook_hook_partial(allow_filter, NULL, NULL, "pthread_create",
-                                                    pthread_create_proxy,
-                                                    pthread_create_hooked_callback, NULL);
-        pthread_setname_np_stub = bytehook_hook_partial(allow_filter, NULL, NULL,
-                                                        "pthread_setname_np",
-                                                        pthread_setname_np_proxy,
-                                                        pthread_setname_np_hooked_callback, NULL);
+    open_proxy = (void *) open_proxy_auto;
+    open_real_proxy = (void *) open_real_proxy_auto;
+    open2_proxy = (void *) open2_proxy_auto;
+    close_proxy = (void *) close_proxy_auto;
+    pthread_join_proxy = (void *) pthread_join_proxy_auto;
+    pthread_detach_proxy = (void *) pthread_detach_proxy_auto;
+    pthread_exit_proxy = (void *) pthread_exit_proxy_auto;
+    pthread_create_proxy = (void *) pthread_create_proxy_auto;
+    pthread_setname_np_proxy = (void *) pthread_setname_np_proxy_auto;
+//    pthread_create_single_proxy = (void *) pthread_create_proxy_auto_single;
 
 
-    } else if (2 == type) {
-        // Here we are not really using bytehook_hook_all().
-        //
-        // In the sample app, we use logcat to output debugging information, so we need to
-        // filter out liblog.so when hook all.
-        //
-        // Because in some Android versions, liblog.so will call open() when executing
-        // __android_log_print(). This is not a problem in itself, but it will indirectly
-        // cause the InitLogging() function of libartbase.so to re-enter and cause a deadlock,
-        // eventually leading to ANR.
-        //
-        // In this sample app, don't do this:
-        //
-        // open_stub = bytehook_hook_all(NULL, "open", open_proxy, open_hooked_callback, NULL);
-        // open_real_stub = bytehook_hook_all(NULL, "__open_real", open_real_proxy, open_real_hooked_callback,
-        // NULL); open2_stub = bytehook_hook_all(NULL, "__open_2", open2_proxy, open2_hooked_callback, NULL);
-
-        open_stub = bytehook_hook_partial(allow_filter_for_hook_all, NULL, NULL, "open", open_proxy,
+    if (isHookOpen) {
+        open_stub = bytehook_hook_partial(allow_filter_for_hook_all, NULL, NULL, "open",
+                                          open_proxy,
                                           open_hooked_callback, NULL);
-        open_real_stub = bytehook_hook_partial(allow_filter_for_hook_all, NULL, NULL, "__open_real",
-                                               open_real_proxy, open_real_hooked_callback, NULL);
+        open_real_stub = bytehook_hook_partial(allow_filter_for_hook_all, NULL, NULL,
+                                               "__open_real",
+                                               open_real_proxy, open_real_hooked_callback,
+                                               NULL);
         open2_stub = bytehook_hook_partial(allow_filter_for_hook_all, NULL, NULL, "__open_2",
                                            open2_proxy,
                                            open2_hooked_callback, NULL);
+    }
+    if (isHookClose) {
         close_stub = bytehook_hook_partial(allow_filter_for_hook_all, NULL, NULL, "close",
                                            close_proxy, close_hooked_callback, NULL);
+    }
+    if (isHookPTheadJoin)
         pthread_join_stub = bytehook_hook_partial(allow_filter_for_hook_all, NULL, NULL,
                                                   "pthread_join", pthread_join_proxy,
                                                   pthread_join_hooked_callback, NULL);
+    if (isHookPTheadDetach)
         pthread_detach_stub = bytehook_hook_partial(allow_filter_for_hook_all, NULL, NULL,
                                                     "pthread_detach", pthread_detach_proxy,
                                                     pthread_detach_hooked_callback, NULL);
+    if (isHookPTheadExit)
         pthread_exit_stub = bytehook_hook_partial(allow_filter_for_hook_all, NULL, NULL,
                                                   "pthread_exit", pthread_exit_proxy,
                                                   pthread_exit_hooked_callback, NULL);
+    if (isHookPTheadCreate)
         pthread_create_stub = bytehook_hook_partial(allow_filter_for_hook_all, NULL, NULL,
                                                     "pthread_create", pthread_create_proxy,
                                                     pthread_create_hooked_callback, NULL);
+    if (isHookPTheadSetName)
         pthread_setname_np_stub = bytehook_hook_partial(allow_filter_for_hook_all, NULL, NULL,
                                                         "pthread_setname_np",
                                                         pthread_setname_np_proxy,
                                                         pthread_setname_np_hooked_callback, NULL);
 
-        pthread_create_single_stub = bytehook_hook_single("libhookee.so", NULL, "pthread_create", pthread_create_single_proxy,
-                                          NULL, NULL);
+//        pthread_create_single_stub = bytehook_hook_single("libhookee.so", NULL, "pthread_create", pthread_create_single_proxy,
+//                                          NULL, NULL);
 //        pthread_create_single_stub = bytehook_hook_single("libhwui.so", NULL, "pthread_create", pthread_create_single_proxy,
 //                                                          NULL, NULL);
-
+    if (isInterceptCrash) {
         do {
             stack_t ss;
             if (NULL == (ss.ss_sp = calloc(1, SIGNAL_CRASH_STACK_SIZE))) {
@@ -488,7 +491,7 @@ static int hacker_hook(JNIEnv *env, jobject thiz, jint type) {
             sigemptyset(&sigc.sa_mask);
             // 推荐采用SA_RESTART 虽然不是所有系统调用都支持，被中断后重新启动，但是能覆盖大部分
             sigc.sa_flags = SA_SIGINFO | SA_ONSTACK | SA_RESTART;
-            int flag = sigaction( 11, &sigc, &old);
+            int flag = sigaction(11, &sigc, &old);
             if (flag == -1) {
                 handle_exception(env);
                 break;
@@ -496,9 +499,10 @@ static int hacker_hook(JNIEnv *env, jobject thiz, jint type) {
         } while (0);
     }
 
+
     return 0;
 }
-                                                                           \
+
 
 static int hacker_unhook(JNIEnv *env, jobject thiz) {
     (void) env, (void) thiz;
@@ -539,9 +543,9 @@ static int hacker_unhook(JNIEnv *env, jobject thiz) {
         bytehook_unhook(pthread_setname_np_stub);
         pthread_setname_np_stub = NULL;
     }
-    if (NULL != pthread_create_single_stub){
+    if (NULL != pthread_create_single_stub) {
         bytehook_unhook(pthread_create_single_stub);
-        pthread_create_single_stub=NULL;
+        pthread_create_single_stub = NULL;
     }
 
 

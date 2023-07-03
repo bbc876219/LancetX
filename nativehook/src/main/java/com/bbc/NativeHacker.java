@@ -14,6 +14,7 @@ public class NativeHacker {
     public static boolean isDebug = true;
 
     public static void init() {
+
         // init bytehook
         int r = ByteHook.init(new ByteHook.ConfigBuilder()
                 .setMode(ByteHook.Mode.AUTOMATIC)
@@ -39,7 +40,7 @@ public class NativeHacker {
         ByteHook.setDebug(debug);
     }
 
-    public static void hook(int type) {
+    public static void hook(int type) throws Exception{
         if (!isInit) init();
         nativeHook(type);
     }
@@ -54,7 +55,7 @@ public class NativeHacker {
         nativeDumpRecords(pathname);
     }
 
-    private static native int nativeHook(int type);
+    private static native int nativeHook(int type) throws Exception;
 
     private static native int nativeUnhook();
 
