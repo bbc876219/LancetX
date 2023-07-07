@@ -2,12 +2,13 @@ package com.yxy.monitormodel.proxy
 
 import android.os.SystemClock
 import android.util.Log
-import com.yxy.monitormodel.LOG_TAG
 import com.yxy.monitormodel.ThreadInfoManager
 import com.yxy.monitormodel.TrackerUtils
 import com.yxy.monitormodel.bean.ThreadInfo
 
-open class TBaseThread : Thread{
+open class TBaseThread : Thread {
+    val isDebug = true;
+
     internal constructor() : super()
     internal constructor(runnable: Runnable?) : super(runnable)
     internal constructor(group: ThreadGroup?, target: Runnable?) : super(group, target)
@@ -29,8 +30,11 @@ open class TBaseThread : Thread{
     @Synchronized
     override fun start() {
         val callStack = TrackerUtils.getStackString()
-        Log.d(LOG_TAG, "proxy callStack  $callStack")
+        if (isDebug) {
+            Log.d(TAG, "proxy thread start callStack  $callStack")
+        }
         super.start()
+
         // 有则更新没有则新增
         val info = ThreadInfoManager.INSTANCE.getThreadInfoById(id)
         info?.also {
@@ -41,7 +45,9 @@ open class TBaseThread : Thread{
                 it.callStack = callStack
                 it.callThreadId = currentThread().id
             }
-            Log.d(LOG_TAG, "proxy callStack  id $id")
+            if (isDebug) {
+                Log.d(TAG, "proxy  thread  id $id")
+            }
         } ?: apply {
             val newInfo = ThreadInfo()
             newInfo.id = id
@@ -51,13 +57,34 @@ open class TBaseThread : Thread{
             newInfo.state = state
             newInfo.startTime = SystemClock.elapsedRealtime()
             ThreadInfoManager.INSTANCE.putThreadInfo(id, newInfo)
-            Log.d(LOG_TAG, "proxy callStack  newInfo id $id")
+            if (isDebug) {
+                Log.d(TAG, "proxy  thread  newInfo id $id")
+            }
         }
-        Log.d(LOG_TAG, "proxy callStack  end ")
+        if (isDebug) {
+            Log.d(TAG, "proxy  thread start   end ")
+        }
     }
 
     override fun run() {
+        val start = System.currentTimeMillis();
+        if (isDebug) {
+            Log.d(TAG, String.format("proxy  thread(%s) run   start ", Thread.currentThread()))
+        }
         super.run()
         ThreadInfoManager.INSTANCE.removeThreadInfo(id)
+        if (isDebug) {
+            Log.d(
+                TAG,
+                String.format(
+                    "proxy  thread run   end cost=%d ",
+                    (System.currentTimeMillis() - start)
+                )
+            )
+        }
+    }
+
+    companion object {
+        private const val TAG = "TBaseThread"
     }
 }
