@@ -567,6 +567,48 @@ static void hacker_dump_records(JNIEnv *env, jobject thiz, jstring pathname) {
 
     (*env)->ReleaseStringUTFChars(env, pathname, c_pathname);
 }
+/**
+ * static bool isHookOpen = false;
+static bool isHookClose = false;
+static bool isHookPTheadCreate = true;
+static bool isHookPTheadRun = true;
+static bool isHookPTheadSetName = true;
+static bool isHookPTheadExit = false;
+static bool isHookPTheadDetach = false;
+static bool isHookPTheadJoin = false;
+static bool isInterceptCrash = true;
+ */
+static jboolean  hacker_set_hookswitch(JNIEnv *env, jobject thiz, jstring key, jboolean value) {
+    (void)env, (void)thiz;
+    bool rs=value;
+    const char *c_key = (*env)->GetStringUTFChars(env, key, 0);
+    if (NULL == c_key) return rs;
+
+    LOGIT("HookSwitch","setHookSwitch = %s  value=%hhu",c_key,rs);
+
+    if (strcasecmp(c_key, "isHookOpen") == 0){
+        isHookOpen=value;
+
+    }else if (strcasecmp(c_key, "isHookClose") == 0){
+        isHookClose=value;
+    }else if (strcasecmp(c_key, "isHookPTheadCreate") == 0){
+        isHookPTheadCreate=value;
+    }else if (strcasecmp(c_key, "isHookPTheadRun") == 0){
+        isHookPTheadRun=value;
+    }else if (strcasecmp(c_key, "isHookPTheadSetName") == 0){
+        isHookPTheadSetName=value;
+    }else if (strcasecmp(c_key, "isHookPTheadExit") == 0){
+        isHookPTheadExit=value;
+    }else if (strcasecmp(c_key, "isHookPTheadDetach") == 0){
+        isHookPTheadDetach=value;
+    }else if (strcasecmp(c_key, "isHookPTheadJoin") == 0){
+        isHookPTheadJoin=value;
+    }else if (strcasecmp(c_key, "isInterceptCrash") == 0){
+        isInterceptCrash=value;
+    }
+
+    return  value;
+}
 
 JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved) {
     (void) reserved;
@@ -583,7 +625,9 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved) {
 
     JNINativeMethod m[] = {{"nativeHook",        "(I)I",                  (void *) hacker_hook},
                            {"nativeUnhook",      "()I",                   (void *) hacker_unhook},
-                           {"nativeDumpRecords", "(Ljava/lang/String;)V", (void *) hacker_dump_records}};
+                           {"nativeDumpRecords", "(Ljava/lang/String;)V", (void *) hacker_dump_records},
+                           {"setHookSwitch", "(Ljava/lang/String;Z)V",(void *)hacker_set_hookswitch}
+                           };
     if (0 != (*env)->RegisterNatives(env, cls, m, sizeof(m) / sizeof(m[0]))) return JNI_ERR;
 
 // 此时的cls仅仅是一个局部变量，如果错误引用会出现错误
