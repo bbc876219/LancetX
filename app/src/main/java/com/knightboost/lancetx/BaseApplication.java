@@ -4,10 +4,12 @@ import android.app.Activity;
 import android.app.Application;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Rect;
 import android.graphics.drawable.BitmapDrawable;
+import android.hardware.Sensor;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
@@ -21,6 +23,8 @@ import android.view.inputmethod.InputMethodManager;
 import android.webkit.WebView;
 import android.widget.ImageView;
 
+import com.bbc.IActivityManagerTranscationInput;
+import com.bbc.IPackageManangerTranscationInput;
 import com.bbc.NativeHacker;
 import com.hdquantum.android.slowdoctor.BuildConfig;
 import com.taobao.android.dexposed.ClassUtils;
@@ -53,7 +57,20 @@ public class BaseApplication extends Application {
     protected void attachBaseContext(Context base) {
         super.attachBaseContext(base);
         NativeHacker.isDebug = true;
-        NativeHacker.init();
+        NativeHacker.init(new NativeHacker.ConfigBuilder()
+                .setHookOpen(true)
+                .setHookClose(false)
+                .setHookPTheadCreate(true)
+                .setHookPTheadRun(true)
+                .setInterceptCrash(true)
+                .setHookPTheadDetach(false)
+                .setHookPTheadSetName(false)
+                .setHookPTheadJoin(false)
+                .setHookPTheadExit(true)
+        )
+
+        ;
+
         NativeHacker.unhook();
 
         try {
@@ -63,7 +80,7 @@ public class BaseApplication extends Application {
         }
 
         //initStrictMode();
-//        if (Build.VERSION.SDK_INT <= 31) {
+        if (Build.VERSION.SDK_INT <= 31) {
 //            hookByDexposed();
 //            pictureMonitor();
 //            class ThreadMethodHook extends XC_MethodHook {
@@ -102,8 +119,8 @@ public class BaseApplication extends Application {
 //            });
 //            DexposedBridge.findAndHookMethod(Thread.class, "run", new ThreadMethodHook());
 //            try {
-//                DexposedBridge.findAndHookMethod(Class.forName("android.os.BinderProxy"), "transact",
-//                        int.class, Parcel.class, Parcel.class, int.class, new XC_MethodHook() {
+//                DexposedBridge.findAndHookMethod(Class.forName("android.content.pm.IPackageManager"), "checkPermission",
+//                        String.class,String.class,int.class, new XC_MethodHook() {
 //                            private long start = 0L;
 //                            private String methodName = "";
 //
@@ -113,23 +130,91 @@ public class BaseApplication extends Application {
 ////                                        //+ "\n" + getStackTrace(new Throwable())
 ////                                );
 //                                //methodName = getBinderProxyMethodNameFormStackMsg(new Throwable());
-//                                methodName = getStackTrace(new Throwable(), 5, 1);
+//                                methodName = getStackTrace(new Throwable(), 3, 10);
 //                                start = System.currentTimeMillis();
 //                                super.beforeHookedMethod(param);
+//
 //                            }
 //
 //                            @Override
 //                            protected void afterHookedMethod(MethodHookParam param) throws Throwable {
 //                                super.afterHookedMethod(param);
-//                                long cost=(System.currentTimeMillis() - start);
-//                                if (cost>5) {
-//                                    Log.i(TAG, String.format("BinderProxy.transact afterHookedMethod exit. cost:%s  methodName=%s", cost, methodName));
+//                                long cost = (System.currentTimeMillis() - start);
+//                                //if (cost>5)
+//                                {
+//                                    Log.i("Transca", String.format("IPackageManager cost:%s args.lenght=%d args=%s methodName=%s ", cost, param.args.length, param.args, methodName));
+//                                    if (param.args.length > 0) {
+//                                        for (int i = 0; i < param.args.length; i++) {
+//                                            Log.i("Transca", String.format("IPackageManager args[%d] = %s ", i, param.args[i]));
+////                                            if (i == 1 && param.args[i] != null && param.args[i] instanceof Parcel) {
+////                                                if (methodName.contains("android.app.IActivityManager$Stub$Proxy")) {
+////                                                    IActivityManagerTranscationInput.onTransactPrintParcel((Integer) param.args[0], (Parcel) param.args[i]);
+////                                                }
+////                                                if (methodName.contains("android.content.pm.IPackageManager$Stub$Proxy")) {
+////                                                    IPackageManangerTranscationInput.onTransactPrintParcel((Integer) param.args[0], (Parcel) param.args[i]);
+////                                                }
+////
+////
+////                                            }
+//                                        }
+//                                    }
+//
+//                                    Log.i("Transca", String.format("IPackageManager rs.class=%s  ,result=%s ", (param.getResult() != null ? param.getResult().getClass().getName() : "no result"), param.getResult()));
 //                                }
 //                            }
 //                        });
+//
 //            } catch (ClassNotFoundException e) {
 //                e.printStackTrace();
 //            }
+            try {
+                 DexposedBridge.findAndHookMethod(Class.forName("android.os.BinderProxy"), "transact",
+                        int.class, Parcel.class, Parcel.class, int.class, new XC_MethodHook() {
+                            private long start = 0L;
+                            private String methodName = "";
+
+                            @Override
+                            protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+//                                Log.i(TAG, "BinderProxy.transact beforeHookedMethod " + param.thisObject.getClass().getSimpleName()
+//                                        //+ "\n" + getStackTrace(new Throwable())
+//                                );
+                                //methodName = getBinderProxyMethodNameFormStackMsg(new Throwable());
+                                methodName = getStackTrace(new Throwable(), 3, 10);
+                                start = System.currentTimeMillis();
+                                super.beforeHookedMethod(param);
+
+                            }
+
+                            @Override
+                            protected void afterHookedMethod(MethodHookParam param) throws Throwable {
+                                super.afterHookedMethod(param);
+                                long cost = (System.currentTimeMillis() - start);
+                                //if (cost>5)
+                                {
+                                    Log.i("Transca", String.format("BinderProxy cost:%s args.lenght=%d args=%s methodName=%s ", cost, param.args.length, param.args, methodName));
+                                    if (param.args.length > 0) {
+                                        for (int i = 0; i < param.args.length; i++) {
+                                            Log.i("Transca", String.format("BinderProxy args[%d] = %s ", i, param.args[i]));
+//                                            if (i == 1 && param.args[i] != null && param.args[i] instanceof Parcel) {
+//                                                if (methodName.contains("android.app.IActivityManager$Stub$Proxy")) {
+//                                                    IActivityManagerTranscationInput.onTransactPrintParcel((Integer) param.args[0], (Parcel) param.args[i]);
+//                                                }
+//                                                if (methodName.contains("android.content.pm.IPackageManager$Stub$Proxy")) {
+//                                                    IPackageManangerTranscationInput.onTransactPrintParcel((Integer) param.args[0], (Parcel) param.args[i]);
+//                                                }
+//
+//
+//                                            }
+                                        }
+                                    }
+
+                                    Log.i("Transca", String.format("BinderProxy rs.class=%s  ,result=%s ", (param.getResult() != null ? param.getResult().getClass().getName() : "no result"), param.getResult()));
+                                }
+                            }
+                        });
+            } catch (ClassNotFoundException e) {
+                e.printStackTrace();
+            }
 //            DexposedBridge.findAndHookMethod(DexFile.class, "loadDex", String.class, String.class, int.class, new XC_MethodHook() {
 //                long start = 0L;
 //
@@ -235,7 +320,7 @@ public class BaseApplication extends Application {
 ////            });
 ////            proxyArrayList_grow();
 ////            proxyHashMap_resize();
-//        }
+        }
 
     }
 
@@ -381,7 +466,7 @@ public class BaseApplication extends Application {
                     public void afterHookedMethod(MethodHookParam param) throws Throwable {
                         View instance = (View) param.thisObject;
                         View view = (View) param.args[0];
-                        Log.w(TAG, "View.OnClickListener.afterHookedMethod() called with: param = [" + view + "]"+instance);
+                        Log.w(TAG, "View.OnClickListener.afterHookedMethod() called with: param = [" + view + "]" + instance);
                     }
                 }
         );
