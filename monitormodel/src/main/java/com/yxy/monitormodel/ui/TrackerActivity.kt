@@ -32,6 +32,7 @@ class TrackerActivity : Activity() {
             if (needShutDown) {
                 ex.shutdownNow()
                 needShutDown = false
+                msg.what=+1
                 sendMessageDelayed(Message.obtain(msg), 2000)
             }
         }

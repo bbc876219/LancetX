@@ -113,14 +113,14 @@ static void run(const struct ThreadHookeeArgus *temp) {
     if (isHookPTheadRun) {
         pthread_t th = pthread_self();
         int tid = pthread_gettid_np(th);
-        long start = currentTimeInMilliseconds();
+        long long start = currentTimeInMilliseconds();
 
         if (bytehook_get_debug())
             LOGWT("pthread.run", "thread start self()=%ld, tid:%d", th, tid);
         temp->current_func(temp->current_arg);
-        long end = currentTimeInMilliseconds();
+        long long end = currentTimeInMilliseconds();
         if (bytehook_get_debug())
-            LOGWT("pthread.run", "thread end self()=%ld,tid:%d,cost: %ld", th, tid,(end - start));
+            LOGWT("pthread.run", "thread end self()=%ld,tid:%d,cost: %lld", th, tid,(end - start));
     } else {
         temp->current_func(temp->current_arg);
     }
