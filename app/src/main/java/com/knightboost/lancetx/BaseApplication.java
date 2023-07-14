@@ -13,6 +13,7 @@ import android.hardware.Sensor;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
+import android.os.Message;
 import android.os.Parcel;
 import android.os.StrictMode;
 import android.telephony.TelephonyManager;
@@ -81,6 +82,7 @@ public class BaseApplication extends Application {
 
         //initStrictMode();
         if (Build.VERSION.SDK_INT <= 31) {
+            hookActivityThreadHandler();
 //            hookByDexposed();
 //            pictureMonitor();
 //            class ThreadMethodHook extends XC_MethodHook {
@@ -102,21 +104,22 @@ public class BaseApplication extends Application {
 //                }
 //            }
 //
-//            DexposedBridge.hookAllConstructors(Thread.class, new XC_MethodHook() {
-//                @Override
-//                protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-//                    super.afterHookedMethod(param);
-//                    Thread thread = (Thread) param.thisObject;
+            DexposedBridge.hookAllConstructors(Thread.class, new XC_MethodHook() {
+                @Override
+                protected void afterHookedMethod(MethodHookParam param) throws Throwable {
+                    super.afterHookedMethod(param);
+                    Thread thread = (Thread) param.thisObject;
 //                    Class<?> clazz = thread.getClass();
 //                    if (clazz != Thread.class) {
 //                        Log.d(TAG, "found class extend Thread:" + clazz);
 //                        DexposedBridge.findAndHookMethod(clazz, "run", new ThreadMethodHook());
 //                    }
-//                    Log.d(TAG, "Thread: " + thread.getName() + " class:" + thread.getClass() + " is created.\n"
-//                            + getStackTrace(new Throwable(), 0)
-//                    );
-//                }
-//            });
+                    Log.d("thread.create", "Thread id=" +thread.getId()+",name="+ thread.getName() + " class:" + thread.getClass() + " is created.\n"
+                            + getStackTrace(new Throwable(), 3,3)
+                    );
+
+                }
+            });
 //            DexposedBridge.findAndHookMethod(Thread.class, "run", new ThreadMethodHook());
 //            try {
 //                DexposedBridge.findAndHookMethod(Class.forName("android.content.pm.IPackageManager"), "checkPermission",
@@ -167,54 +170,57 @@ public class BaseApplication extends Application {
 //            } catch (ClassNotFoundException e) {
 //                e.printStackTrace();
 //            }
-            try {
-                 DexposedBridge.findAndHookMethod(Class.forName("android.os.BinderProxy"), "transact",
-                        int.class, Parcel.class, Parcel.class, int.class, new XC_MethodHook() {
-                            private long start = 0L;
-                            private String methodName = "";
-
-                            @Override
-                            protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
-//                                Log.i(TAG, "BinderProxy.transact beforeHookedMethod " + param.thisObject.getClass().getSimpleName()
-//                                        //+ "\n" + getStackTrace(new Throwable())
-//                                );
-                                //methodName = getBinderProxyMethodNameFormStackMsg(new Throwable());
-                                methodName = getStackTrace(new Throwable(), 3, 10);
-                                start = System.currentTimeMillis();
-                                super.beforeHookedMethod(param);
-
-                            }
-
-                            @Override
-                            protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-                                super.afterHookedMethod(param);
-                                long cost = (System.currentTimeMillis() - start);
-                                //if (cost>5)
-                                {
-                                    Log.i("Transca", String.format("BinderProxy cost:%s args.lenght=%d args=%s methodName=%s ", cost, param.args.length, param.args, methodName));
-                                    if (param.args.length > 0) {
-                                        for (int i = 0; i < param.args.length; i++) {
-                                            Log.i("Transca", String.format("BinderProxy args[%d] = %s ", i, param.args[i]));
-//                                            if (i == 1 && param.args[i] != null && param.args[i] instanceof Parcel) {
-//                                                if (methodName.contains("android.app.IActivityManager$Stub$Proxy")) {
-//                                                    IActivityManagerTranscationInput.onTransactPrintParcel((Integer) param.args[0], (Parcel) param.args[i]);
-//                                                }
-//                                                if (methodName.contains("android.content.pm.IPackageManager$Stub$Proxy")) {
-//                                                    IPackageManangerTranscationInput.onTransactPrintParcel((Integer) param.args[0], (Parcel) param.args[i]);
-//                                                }
+//            try {
+//                 DexposedBridge.findAndHookMethod(Class.forName("android.os.BinderProxy"), "transact",
+//                        int.class, Parcel.class, Parcel.class, int.class, new XC_MethodHook() {
+//                            private long start = 0L;
+//                            private String methodName = "";
 //
+//                            @Override
+//                            protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+////                                Log.i(TAG, "BinderProxy.transact beforeHookedMethod " + param.thisObject.getClass().getSimpleName()
+////                                        //+ "\n" + getStackTrace(new Throwable())
+////                                );
+//                                //methodName = getBinderProxyMethodNameFormStackMsg(new Throwable());
+//                                methodName = getStackTrace(new Throwable(), 5, 1);
+//                                start = System.currentTimeMillis();
+//                                super.beforeHookedMethod(param);
+//                                //Log.e("Transca", "BinderProxy beforeHookedMethod() called with: methodName = [" + methodName + "]");
 //
-//                                            }
-                                        }
-                                    }
-
-                                    Log.i("Transca", String.format("BinderProxy rs.class=%s  ,result=%s ", (param.getResult() != null ? param.getResult().getClass().getName() : "no result"), param.getResult()));
-                                }
-                            }
-                        });
-            } catch (ClassNotFoundException e) {
-                e.printStackTrace();
-            }
+//                            }
+//
+//                            @Override
+//                            protected void afterHookedMethod(MethodHookParam param) throws Throwable {
+//                                super.afterHookedMethod(param);
+//                                long cost = (System.currentTimeMillis() - start);
+//                                //if (cost>5)
+//                                try{
+//                                    Log.i("Transca", String.format("BinderProxy cost:%s methodName=%s  args.lenght=%d args=%s ", cost, methodName, param.args.length, param.args));
+////                                    if (param.args.length > 0) {
+////                                        for (int i = 0; i < param.args.length; i++) {
+////                                            Log.i("Transca", String.format("BinderProxy args[%d] = %s ", i, param.args[i]));
+//////                                            if (i == 1 && param.args[i] != null && param.args[i] instanceof Parcel) {
+//////                                                if (methodName.contains("android.app.IActivityManager$Stub$Proxy")) {
+//////                                                    IActivityManagerTranscationInput.onTransactPrintParcel((Integer) param.args[0], (Parcel) param.args[i]);
+//////                                                }
+//////                                                if (methodName.contains("android.content.pm.IPackageManager$Stub$Proxy")) {
+//////                                                    IPackageManangerTranscationInput.onTransactPrintParcel((Integer) param.args[0], (Parcel) param.args[i]);
+//////                                                }
+//////
+//////
+//////                                            }
+////                                        }
+////                                    }
+//
+//                                    Log.i("Transca", String.format("BinderProxy rs.class=%s  ,result=%s ", (param.getResult() != null ? param.getResult().getClass().getName() : "no result"), param.getResult()));
+//                                }catch (Exception e){
+//                                    Log.e("Transca","BinderProxy afterHookedMethod Exception,methodName="+methodName,e);
+//                                }
+//                            }
+//                        });
+//            } catch (ClassNotFoundException e) {
+//                e.printStackTrace();
+//            }
 //            DexposedBridge.findAndHookMethod(DexFile.class, "loadDex", String.class, String.class, int.class, new XC_MethodHook() {
 //                long start = 0L;
 //
@@ -471,6 +477,77 @@ public class BaseApplication extends Application {
                 }
         );
 
+    }
+
+
+    public static void hookActivityThreadHandler(){
+        try {
+            DexposedBridge.findAndHookMethod(Class.forName("android.app.ActivityThread$H"), "handleMessage", Message.class, new XC_MethodHook() {
+                private long start = 0L;
+
+                @Override
+                protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+                    super.beforeHookedMethod(param);
+                    start = System.currentTimeMillis();
+                    //Log.d("Handler", "handleMessage beforeHookedMethod: " + param.thisObject+"  msg="+param.args[0]);
+                }
+
+                @Override
+                protected void afterHookedMethod(MethodHookParam param) throws Throwable {
+                    super.afterHookedMethod(param);
+                    Log.i("Handler", String.format("android.app.ActivityThread$H.handleMessage cost=%d  msg=%s", (System.currentTimeMillis() - start), param.args[0]));
+
+                }
+            });
+            DexposedBridge.findAndHookMethod(Class.forName("android.os.Handler"), "sendMessageAtTime", Message.class, long.class, new XC_MethodHook() {
+                private long start=0L;
+
+                @Override
+                protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+                    super.beforeHookedMethod(param);
+                    start=System.currentTimeMillis();
+                    //Log.d("Handler", "handleMessage beforeHookedMethod: " + param.thisObject+"  msg="+param.args[0]);
+
+
+
+                }
+
+//                @Override
+//                protected void afterHookedMethod(MethodHookParam param) throws Throwable {
+//                    super.afterHookedMethod(param);
+//                    if ((Boolean) param.getResult()) {
+//                        Log.i("Handler", String.format("android.os.Handler.sendMessageAtTime rs.class=%s  ,result=%s  cost=%d  msg=%s", (param.getResult() != null ? param.getResult().getClass().getName() : "no result"), param.getResult(), (System.currentTimeMillis() - start), param.args[0]));
+//                    }
+//
+//                }
+            });
+            DexposedBridge.findAndHookMethod(Class.forName("android.os.Handler"), "dispatchMessage", Message.class, new XC_MethodHook() {
+                private long start=0L;
+
+                @Override
+                protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+                    super.beforeHookedMethod(param);
+                    start=System.currentTimeMillis();
+                    //Log.d("Handler", "handleMessage beforeHookedMethod: " + param.thisObject+"  msg="+param.args[0]);
+
+
+
+                }
+
+                @Override
+                protected void afterHookedMethod(MethodHookParam param) throws Throwable {
+                    super.afterHookedMethod(param);
+                    long cost=(System.currentTimeMillis()-start);
+                    if (cost>50) {
+                        Log.i("Handler", String.format("android.os.Handler.dispatchMessage  cost=%d  msg=%s", cost, param.args[0]));
+                    }
+
+                }
+            });
+
+        } catch (ClassNotFoundException e) {
+            throw new RuntimeException(e);
+        }
     }
 
 
