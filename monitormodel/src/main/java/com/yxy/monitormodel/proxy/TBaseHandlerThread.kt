@@ -20,8 +20,6 @@ open class TBaseHandlerThread : HandlerThread {
     override fun start() {
         val callStack = TrackerUtils.getStackString()
         Log.d(Companion.TAG, "start() called callStack")
-        super.start()
-
         // 有则更新没有则新增
         val info = ThreadInfoManager.INSTANCE.getThreadInfoById(id)
         info?.also {
@@ -40,16 +38,25 @@ open class TBaseHandlerThread : HandlerThread {
             newInfo.callThreadId = currentThread().id
             newInfo.state = state
             newInfo.startTime = SystemClock.elapsedRealtime()
-            ThreadInfoManager.INSTANCE.putThreadInfo(id, newInfo)
+            ThreadInfoManager.INSTANCE.putThreadInfo(id, newInfo, "basehandlerthread")
         }
+        super.start()
+
+
     }
 
     override fun run() {
+        Log.d(TAG, "run() called")
+        val start = System.currentTimeMillis()
         super.run()
+        Log.d(
+            TAG,
+            " run () cost : " + (System.currentTimeMillis() - start) + "ms in thread:" + Thread.currentThread().name + "[" + Thread.currentThread().id + "]"
+        )
         ThreadInfoManager.INSTANCE.removeThreadInfo(id)
     }
 
     companion object {
-        private const val TAG = "TBaseHandlerThread"
+        private const val TAG = "THandlerThread"
     }
 }

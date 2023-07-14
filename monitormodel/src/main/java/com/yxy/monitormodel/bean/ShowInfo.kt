@@ -15,5 +15,10 @@ data class ShowInfo(
         const val POOL = 1
         const val POOL_THREAD = 2
     }
+
+    override fun toString(): String {
+        return "ShowInfo(threadId=$threadId, threadName='$threadName', threadState=$threadState, poolName=$poolName, type=$type)"
+    }
+
 }
 

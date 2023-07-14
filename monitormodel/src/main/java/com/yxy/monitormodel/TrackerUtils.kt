@@ -54,6 +54,24 @@ object TrackerUtils {
         }
         return str
     }
+    @JvmStatic fun getStackTrace(e: Throwable, index: Int, len: Int): String? {
+        var len = len
+        val sb = StringBuilder()
+        val stackArray = e.stackTrace
+        var i = index
+        while (stackArray.size > index && (i < stackArray.size) && len > 0) {
+            val element = stackArray[i]
+            sb.append(
+                """
+                $element
+                
+                """.trimIndent()
+            )
+            len--
+            i++
+        }
+        return sb.toString()
+    }
 
     fun getThreadRunningStack(stacks: Array<StackTraceElement>): String {
         var str = ""

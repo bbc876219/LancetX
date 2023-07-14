@@ -44,7 +44,7 @@ open class TBaseTimer : Timer {
                         newInfo.callThreadId = Thread.currentThread().id
                         newInfo.state = state
                         newInfo.startTime = SystemClock.elapsedRealtime()
-                        ThreadInfoManager.INSTANCE.putThreadInfo(id, newInfo)
+                        ThreadInfoManager.INSTANCE.putThreadInfo(id, newInfo,"timer")
                     }
                 }
             }

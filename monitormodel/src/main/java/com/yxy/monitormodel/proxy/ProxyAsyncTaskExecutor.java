@@ -39,7 +39,7 @@ public class ProxyAsyncTaskExecutor implements InvocationHandler {
         poolInfo.setPoolName(poolName);
         poolInfo.setCreateStack(createStack);
         poolInfo.setCreateThreadId(Thread.currentThread().getId());
-        ThreadInfoManager.getINSTANCE().putThreadPoolInfo(poolName, poolInfo);
+        ThreadInfoManager.getINSTANCE().putThreadPoolInfo(poolName, poolInfo,"ProxyAsyncTaskExecutor.constructor");
     }
 
     @Override

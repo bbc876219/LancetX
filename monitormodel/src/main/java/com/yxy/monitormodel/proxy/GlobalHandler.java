@@ -5,6 +5,8 @@ import android.os.Looper;
 import android.os.Message;
 import android.util.Log;
 
+import com.yxy.monitormodel.TrackerUtils;
+
 import org.json.JSONObject;
 
 public class GlobalHandler extends Handler {
@@ -13,7 +15,7 @@ public class GlobalHandler extends Handler {
 
     public GlobalHandler() {
         super(Looper.myLooper(), null);
-        Log.w(TAG, "GlobalHandler() called");
+        Log.w(TAG, "GlobalHandler() called"+ TrackerUtils.getStackTrace(new Throwable("GlobalHandler()"),3,7));
     }
 
     public GlobalHandler(Callback callback) {
@@ -28,7 +30,7 @@ public class GlobalHandler extends Handler {
 
     public GlobalHandler(Looper looper) {
         super(looper);
-        Log.d(TAG, "GlobalHandler() called with: looper = [" + looper + "]");
+        Log.d(TAG, "GlobalHandler() called with: looper = [" + looper + "]"+ TrackerUtils.getStackTrace(new Throwable("GlobalHandler(Looper looper)"),3,7));
     }
 
     @Override
@@ -37,6 +39,8 @@ public class GlobalHandler extends Handler {
         // 1
         if (send) {
             GetDetailHandlerHelper.getMsgDetail().put(msg, Log.getStackTraceString(new Throwable()).replace("java.lang.Throwable", ""));
+        }else{
+            Log.d(TAG, "sendMessageAtTime(FAIL) called with: msg = [" + msg + "], uptimeMillis = [" + uptimeMillis + "]");
         }
         return send;
     }
@@ -45,21 +49,14 @@ public class GlobalHandler extends Handler {
     public void dispatchMessage(Message msg) {
         mStartTime = System.currentTimeMillis();
         super.dispatchMessage(msg);
-
-        if (GetDetailHandlerHelper.getMsgDetail().containsKey(msg)
-                && Looper.myLooper() == Looper.getMainLooper()) {
-            JSONObject jsonObject = new JSONObject();
-            try {
-                // 2
-                jsonObject.put("Msg_Cost", System.currentTimeMillis() - mStartTime);
-                jsonObject.put("MsgTrace", msg.getTarget() + " " + GetDetailHandlerHelper.getMsgDetail().get(msg));
-
-                // 3
-                Log.i(TAG, "MsgDetail " + jsonObject.toString());
-                GetDetailHandlerHelper.getMsgDetail().remove(msg);
-            } catch (Exception e) {
+        if (GetDetailHandlerHelper.getMsgDetail().containsKey(msg)){
+            long cost=System.currentTimeMillis() - mStartTime;
+            if (cost>5) {
+                Log.d(TAG, "dispatchMessage() called with: msg = [" + msg + "] cost:" + (cost)+" target="+msg.getTarget());
             }
+            GetDetailHandlerHelper.getMsgDetail().remove(msg);
         }
+
     }
 
     private static final String TAG = "GlobalHandler";

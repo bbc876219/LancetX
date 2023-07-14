@@ -24,7 +24,7 @@ open class ProxyThreadPoolExecutor(private val real: ThreadPoolExecutor) :
         poolInfo.poolName = poolName
         poolInfo.createStack = createStack
         poolInfo.createThreadId = Thread.currentThread().id
-        INSTANCE.putThreadPoolInfo(poolName, poolInfo)
+        INSTANCE.putThreadPoolInfo(poolName, poolInfo,"ProxyThreadPoolExecutor.init")
     }
 
     override fun execute(command: Runnable) {
@@ -47,15 +47,15 @@ open class ProxyThreadPoolExecutor(private val real: ThreadPoolExecutor) :
 
 
     override fun submit(task: Runnable): Future<*> {
-        return real.submit(task)
+        return real.submit(ProxyRunnable(task))
     }
 
     override fun <T : Any?> submit(task: Runnable, result: T): Future<T> {
-        return real.submit(task, result)
+        return real.submit(ProxyRunnable(task), result)
     }
 
     override fun <T : Any?> submit(task: Callable<T>): Future<T> {
-        return real.submit(task)
+        return real.submit(ProxyCallable(task))
     }
 
     override fun getCorePoolSize(): Int {

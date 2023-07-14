@@ -27,4 +27,29 @@ public class ExtendWeave {
             classNameFilterRegex = ""
     )
     public void extendHandlerThreadChange(){};
+    @ChangeClassExtends(
+            beforeExtend = "java.util.concurrent.ScheduledThreadPoolExecutor",
+            afterExtend = "com.yxy.monitormodel.proxy.TBaseScheduledThreadPoolExecutor",
+            classNameFilterRegex = ""
+    )
+    public void extendScheduledThreadPoolExecutor(){};
+    @ChangeClassExtends(
+            beforeExtend = "java.util.concurrent.ThreadPoolExecutor",
+            afterExtend = "com.yxy.monitormodel.proxy.TBaseThreadPoolExecutor",
+            classNameFilterRegex = ""
+    )
+    public void extendThreadPoolExecutor(){};
+    @ChangeClassExtends(
+            beforeExtend = "java.util.concurrent.ThreadFactory",
+            afterExtend = "com.yxy.monitormodel.proxy.TBaseThreadFactory",
+            classNameFilterRegex = ""
+    )
+    public void extendThreadFactory(){};
+
+    @ChangeClassExtends(
+            beforeExtend = "java.lang.Runnable",
+            afterExtend = "com.yxy.monitormodel.proxy.TBaseRunnable",
+            classNameFilterRegex = ""
+    )
+    public void extendRunnable(){};
 }

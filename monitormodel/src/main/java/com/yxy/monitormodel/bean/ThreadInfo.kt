@@ -13,11 +13,18 @@ data class ThreadInfo(
     var runningStack: String = "", // 运行时栈，由Thread.getAllStackTraces获取
     var poolName: String? = null, // 此线程所属线程池，没有就是null
     var startTime: Long = -1L, // 线程start的cpu时间，用于计算线程运行时间。线程池中的线程无此信息
+    var endTime:Long = -1L,
     var hit: Int = HIT_NEW // 在跟获取当前所有进程后对比时用，0新添加 1未命中 2命中
 ) {
     companion object {
         const val HIT_NEW = 0
         const val HIT_NO = 1
         const val HIT_YES = 2
+        const val HIT_TERMINATED = 3
     }
+
+    override fun toString(): String {
+        return "ThreadInfo(id=$id, name='$name', state=$state, callStack='$callStack', callThreadId=$callThreadId, runningStack='$runningStack', poolName=$poolName, startTime=$startTime, endTime=$endTime, hit=$hit)"
+    }
+
 }

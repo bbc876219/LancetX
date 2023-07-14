@@ -1,6 +1,7 @@
 package com.yxy.monitormodel.proxy
 
 
+import android.util.Log
 import com.yxy.monitormodel.ThreadInfoManager
 import com.yxy.monitormodel.bean.ThreadInfo
 import java.util.concurrent.Callable
@@ -17,16 +18,27 @@ class PoolRunnableAndOther constructor(
     private val callThreadId = Thread.currentThread().id
 
     override fun run() {
+        val start = System.currentTimeMillis()
         val info = updateThreadInfo()
         (any as Runnable).run()
         // 任务已执行结束，callStack表示任务添加栈，此时应为空代表线程当前无任务在运行
         info.callStack = ""
+        Log.d(
+            "proxyrunnable",
+            any.javaClass.getName() + " run() cost : " + (System.currentTimeMillis() - start) + "ms in thread:" + Thread.currentThread().name + "[" + Thread.currentThread().id + "]"
+        )
     }
 
     override fun call(): Any {
+        val start = System.currentTimeMillis()
         val info = updateThreadInfo()
         val v = (any as Callable<Any>).call()
         info.callStack = ""
+        Log.d(
+            "proxycallable",
+            any.javaClass.getName() + " call () cost : " + (System.currentTimeMillis() - start) + "ms in thread:" + Thread.currentThread().name + "[" + Thread.currentThread().id + "]"
+        )
+
         return v
     }
 
@@ -46,7 +58,7 @@ class PoolRunnableAndOther constructor(
             callThreadId = this@PoolRunnableAndOther.callThreadId
         }
         // 更新或添加
-        ThreadInfoManager.INSTANCE.putThreadInfo(thread.id, info)
+        ThreadInfoManager.INSTANCE.putThreadInfo(thread.id, info,"PoolRunnableAndOther")
         return info
     }
 

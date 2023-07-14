@@ -11,4 +11,9 @@ data class ThreadPoolInfo(
     var createThreadId: Long = -1L, // 被创建时所处线程id
     var threadIds: MutableList<Long> = mutableListOf(), // 包含的线程，在获取当前所有线程信息时填写
     var shutDown: Boolean = false // 是否已被调用shutDown或shutDownNow
-)
+
+) {
+    override fun toString(): String {
+        return "ThreadPoolInfo(poolName='$poolName', createStack='$createStack', createThreadId=$createThreadId, threadIds=$threadIds, shutDown=$shutDown)"
+    }
+}

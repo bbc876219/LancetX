@@ -26,7 +26,7 @@ open class TBaseThreadPoolExecutor : ThreadPoolExecutor {
         poolInfo.poolName = poolName
         poolInfo.createStack = createStack
         poolInfo.createThreadId = Thread.currentThread().id
-        ThreadInfoManager.INSTANCE.putThreadPoolInfo(poolName, poolInfo)
+        ThreadInfoManager.INSTANCE.putThreadPoolInfo(poolName, poolInfo,"TBaseThreadPoolExecutor")
     }
 
     constructor(

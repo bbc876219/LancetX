@@ -26,15 +26,21 @@ open class TBaseThread : Thread {
         name: String,
         stackSize: Long
     ) : super(group, target, name, stackSize)
+    init{
+        if (isDebug) {
+            val callStack = TrackerUtils.getStackTrace(Throwable(), 0, 10)
+            if (isDebug) {
+                Log.d(TAG + ".init", "thread $id init callStack  $callStack")
+            }
+        }
+    }
 
     @Synchronized
     override fun start() {
-        val callStack = TrackerUtils.getStackString()
+        val callStack = TrackerUtils.getStackTrace(Throwable(),0,10)
         if (isDebug) {
-            Log.d(TAG, "proxy thread start callStack  $callStack")
+            Log.d(TAG+".start", "thread ${id} start callStack  $callStack")
         }
-        super.start()
-
         // 有则更新没有则新增
         val info = ThreadInfoManager.INSTANCE.getThreadInfoById(id)
         info?.also {
@@ -42,42 +48,45 @@ open class TBaseThread : Thread {
             it.name = name
             it.state = state
             if (it.callStack.isEmpty()) { // 如果来自线程池，callStack意义为任务添加栈，可能已经有值了，不能更新为start调用栈
-                it.callStack = callStack
+                it.callStack = callStack.toString()
                 it.callThreadId = currentThread().id
             }
             if (isDebug) {
-                Log.d(TAG, "proxy  thread  id $id")
+                Log.d(TAG+".start", "thread  id $id")
             }
         } ?: apply {
             val newInfo = ThreadInfo()
             newInfo.id = id
             newInfo.name = name
-            newInfo.callStack = callStack
+            newInfo.callStack = callStack.toString()
             newInfo.callThreadId = currentThread().id
             newInfo.state = state
             newInfo.startTime = SystemClock.elapsedRealtime()
-            ThreadInfoManager.INSTANCE.putThreadInfo(id, newInfo)
+            ThreadInfoManager.INSTANCE.putThreadInfo(id, newInfo,"basethread")
             if (isDebug) {
-                Log.d(TAG, "proxy  thread  newInfo id $id")
+                Log.d(TAG+".start", "thread  newInfo id $id")
             }
         }
-        if (isDebug) {
-            Log.d(TAG, "proxy  thread start   end ")
-        }
+        super.start()
+
+
+//        if (isDebug) {
+//            Log.d(TAG, "proxy $id thread start end ")
+//        }
     }
 
     override fun run() {
         val start = System.currentTimeMillis();
         if (isDebug) {
-            Log.d(TAG, String.format("proxy  thread(%s) run   start ", Thread.currentThread()))
+            Log.d(TAG+".run", "thread($id) start ")
         }
         super.run()
         ThreadInfoManager.INSTANCE.removeThreadInfo(id)
         if (isDebug) {
             Log.d(
-                TAG,
+                TAG+".run",
                 String.format(
-                    "proxy  thread run   end cost=%d ",
+                    "thread $id  end cost=%d ",
                     (System.currentTimeMillis() - start)
                 )
             )
@@ -85,6 +94,6 @@ open class TBaseThread : Thread {
     }
 
     companion object {
-        private const val TAG = "TBaseThread"
+        private const val TAG = "thread"
     }
 }

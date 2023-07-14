@@ -9,6 +9,7 @@ import android.graphics.Paint
 import android.graphics.Typeface
 import android.os.Bundle
 import android.os.Looper
+import android.os.SystemClock
 import android.text.SpannableString
 import android.text.Spanned
 import android.text.style.ForegroundColorSpan
@@ -17,7 +18,7 @@ import android.text.style.StyleSpan
 import android.util.Log
 import android.view.View
 import android.widget.Toast
-import com.yxy.monitormodel.LOG_TAG
+
 import com.yxy.monitormodel.R
 import com.yxy.monitormodel.ThreadInfoManager
 import com.yxy.monitormodel.TrackerUtils.setStatusBarColor
@@ -90,15 +91,15 @@ class ThreadDetailsActivity : Activity() {
         }
         when (type) {
             ShowInfo.SINGLE_THREAD -> { // 展示独立线程详细信息
-                Log.d(LOG_TAG, "details:${threadInfo}")
+                Log.d(TAG, "details:${threadInfo}")
                 showSingleThreadInfo(threadInfo)
             }
             ShowInfo.POOL -> { // 展示线程池详细信息
-                Log.d(LOG_TAG, "details:${poolInfo}")
+                Log.d(TAG, "details:${poolInfo}")
                 showPoolInfo(poolInfo)
             }
             ShowInfo.POOL_THREAD -> { // 展示线程池中线程详细信息
-                Log.d(LOG_TAG, "details:${threadInfo}")
+                Log.d(TAG, "details:${threadInfo}")
                 showPoolThreadInfo(threadInfo)
             }
         }
@@ -107,10 +108,17 @@ class ThreadDetailsActivity : Activity() {
     @SuppressLint("SetTextI18n")
     private fun showSingleThreadInfo(threadInfo: ThreadInfo?) {
         threadInfo?.apply {
+            var cost=endTime-startTime
+            if (endTime==-1L){
+                cost=android.os.SystemClock.elapsedRealtime()-startTime
+            }
+
             infoDetails.text =
                 "id: ${id}\n\n" +
                         "name: ${name}\n\n" +
-                        "state: $state"
+                        "singlethread: ${name}\n\n" +
+                        "state: $state \n\n" +
+                        "cost:  ${cost}ms"
             stack1Details.text = highlightStack(callStack)
             if (callStack.isEmpty()) {
                 stack1Details.setTextColor(colorBlue)
@@ -245,4 +253,5 @@ class ThreadDetailsActivity : Activity() {
         }
         return span
     }
+    private  val TAG = "ThreadDetailsActivity"
 }

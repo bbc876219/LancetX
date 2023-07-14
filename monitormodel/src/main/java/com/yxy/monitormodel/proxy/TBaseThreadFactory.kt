@@ -12,7 +12,8 @@ open class TBaseThreadFactory(
 ) : ThreadFactory {
     override fun newThread(runnable: Runnable): Thread {
         // 注意这里面的runnable是被worker包装过的，已经不是用户传来的runnable
-        val thread = threadFactory.newThread(runnable)
+        val thread = threadFactory.newThread(ProxyRunnable(runnable))
+        thread.name=runnable.javaClass.name
         addThreadInfo(thread)
         return thread
     }
@@ -25,7 +26,7 @@ open class TBaseThreadFactory(
             it.state = thread.state
             it.poolName = poolName
         }
-        ThreadInfoManager.INSTANCE.putThreadInfo(thread.id, info)
+        ThreadInfoManager.INSTANCE.putThreadInfo(thread.id, info,"BaseThreadFactory")
     }
 
     fun getReal(): ThreadFactory {

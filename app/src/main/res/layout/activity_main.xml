@@ -37,4 +37,11 @@
         android:layout_height="wrap_content"
         />
 
+    <Button
+        android:id="@+id/button4"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:onClick="starthreadInfoActivity"
+        android:text="ThreadInfo" />
+
 </androidx.appcompat.widget.LinearLayoutCompat>
