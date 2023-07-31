@@ -609,7 +609,49 @@ static jboolean  hacker_set_hookswitch(JNIEnv *env, jobject thiz, jstring key, j
 
     return  value;
 }
+static bool setApiBlacklistExemptions(JNIEnv *env) {
+    LOGE("setApiBlacklistExemptions start");
+    /*=================在这里使用了ZygoteInit,而不是VMRuntime, 效果一样==================*/
+    jclass zygoteInitClass = (*env)->FindClass(env,"com/android/internal/os/ZygoteInit");
+    if (zygoteInitClass == NULL) {
+        LOGE("not found class");
+        (*env)->ExceptionClear(env);
+        return false;
+    }
 
+    jmethodID setApiBlackListApiMethod =
+            (*env)->GetStaticMethodID(env,zygoteInitClass,
+                                   "setApiBlacklistExemptions",
+                                   "([Ljava/lang/String;)V");
+    if (setApiBlackListApiMethod == NULL) {
+        (*env)->ExceptionClear(env);
+        setApiBlackListApiMethod =
+                (*env)->GetStaticMethodID(env,zygoteInitClass,
+                                       "setApiDenylistExemptions",
+                                       "([Ljava/lang/String;)V");
+    }
+
+    if (setApiBlackListApiMethod == NULL) {
+        LOGE("not found method");
+        return false;
+    }
+
+    jclass stringCLass = (*env)->FindClass(env,"java/lang/String");
+
+    jstring fakeStr = (*env)->NewStringUTF(env,"L");
+
+    jobjectArray fakeArray = (*env)->NewObjectArray(env,
+            1, stringCLass, NULL);
+
+    (*env)->SetObjectArrayElement(env,fakeArray, 0, fakeStr);
+
+    (*env)->CallStaticVoidMethod(env,zygoteInitClass,setApiBlackListApiMethod, fakeArray);
+
+    (*env)->DeleteLocalRef(env,fakeStr);
+    (*env)->DeleteLocalRef(env,fakeArray);
+    LOGE("fakeapi success!");
+    return true;
+}
 JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved) {
     (void) reserved;
 
@@ -617,9 +659,12 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved) {
 
     JNIEnv *env;
     currentVm = vm;
+
     if (JNI_OK != (*vm)->GetEnv(vm, (void **) &env, HACKER_JNI_VERSION)) return JNI_ERR;
     if (NULL == env || NULL == *env) return JNI_ERR;
-
+    if (!setApiBlacklistExemptions(env)) {
+        LOGE("setApiBlacklistExemptions failed");
+    }
     jclass cls;
     if (NULL == (cls = (*env)->FindClass(env, HACKER_JNI_CLASS_NAME))) return JNI_ERR;
 
@@ -632,6 +677,7 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved) {
 
 // 此时的cls仅仅是一个局部变量，如果错误引用会出现错误
     callClass = (*env)->NewGlobalRef(env, cls);
+
     return HACKER_JNI_VERSION;
 }
 
