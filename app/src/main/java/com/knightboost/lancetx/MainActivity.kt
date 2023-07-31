@@ -1,5 +1,6 @@
 package com.knightboost.lancetx
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
@@ -10,27 +11,42 @@ import android.hardware.SensorManager
 import android.os.Bundle
 import android.util.Log
 import android.view.View
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.bbc.NativeHookee
 import com.hdquantum.android.slowdoctor.R
-import com.yxy.monitormodel.ui.ThreadDetailsActivity
 import com.yxy.monitormodel.ui.TrackerActivity
 import kotlinx.android.synthetic.main.activity_main.button
 import kotlinx.android.synthetic.main.activity_main.button2
 import kotlinx.android.synthetic.main.activity_main.button3
 import kotlinx.android.synthetic.main.activity_main.imageView
-import kotlinx.android.synthetic.main.activity_main.init_method_insert_test
 import java.lang.Math.sqrt
 import java.util.Objects
 
 class MainActivity : AppCompatActivity() {
+    var textView: TextView? = null
+    var textView2: TextView? = null
+    var textView3: TextView? = null
+    var textView4: TextView? = null
+    var textView5: TextView? = null
+    var textView6: TextView? = null
+    var textView7: TextView? = null
+
+    @SuppressLint("MissingInflatedId")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         System.loadLibrary("hookee") // test for load-before-init
 
 
         setContentView(R.layout.activity_main)
+        textView = findViewById(R.id.textView)
+        textView2 = findViewById(R.id.textView2)
+        textView3 = findViewById(R.id.textView3)
+        textView4 = findViewById(R.id.textView4)
+        textView5 = findViewById(R.id.textView5)
+        textView6 = findViewById(R.id.textView6)
+        textView7 = findViewById(R.id.textView7)
 //        ImplA().testMethod()
 //        ClassA().printMessage("haha!")
 //
@@ -50,7 +66,16 @@ class MainActivity : AppCompatActivity() {
                 list.add(it.toString());
             }
             println(list.toArray())
-
+            try {
+                val runtimeClass = Class.forName("dalvik.system.VMRuntime")
+                val nativeLoadMethod = runtimeClass.getDeclaredMethod(
+                    "setTargetSdkVersionNative",
+                    *arrayOf<Class<*>?>(Int::class.javaPrimitiveType)
+                )
+                Log.d("whulzz", "setTargetSdkVersionNative success!")
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
 
         }
         button2.setOnClickListener {
@@ -106,7 +131,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onPause() {
-        sensorManager!!.unregisterListener(sensorListener)
+        //sensorManager?.unregisterListener(sensorListener)
         super.onPause()
     }
 
@@ -136,19 +161,27 @@ class MainActivity : AppCompatActivity() {
     private var timerStart = 0L;
     private val sensorListener: SensorEventListener = object : SensorEventListener {
         override fun onSensorChanged(event: SensorEvent) {
-            val isDebug = (System.currentTimeMillis() - timerStart > 3000)
+            val isDebug = (System.currentTimeMillis() - timerStart > 100)
             if (isDebug) {
                 timerStart = System.currentTimeMillis();
             }
+
             // Fetching x,y,z values
             val x = event.values[0]
             val y = event.values[1]
             val z = event.values[2]
+           return;
+            textView?.setText("X:${x}")
+            textView2?.setText("Y:${y}")
+            textView3?.setText("Z:${z}")
             lastAcceleration = currentAcceleration
+
+            textView4?.setText("lastAcceleration:${lastAcceleration}")
 
             // Getting current accelerations
             // with the help of fetched x,y,z values
             currentAcceleration = sqrt((x * x + y * y + z * z).toDouble()).toFloat()
+            textView5?.setText("currentAcceleration:${currentAcceleration}")
             if (isDebug)
                 Log.d(
                     TAGS,
@@ -157,6 +190,8 @@ class MainActivity : AppCompatActivity() {
 
             val delta: Float = currentAcceleration - lastAcceleration
             acceleration = acceleration * 0.9f + delta
+            textView6?.setText("delta:${delta}")
+            textView7?.setText("acceleration:${acceleration}")
             if (isDebug)
                 Log.d(
                     TAGS,
@@ -178,12 +213,24 @@ class MainActivity : AppCompatActivity() {
     companion object {
         private const val TAGS = "sensor"
     }
-    fun starthreadInfoActivity(view: View){
+
+    fun starthreadInfoActivity(view: View) {
         val intent = Intent()
         intent.setClass(this, TrackerActivity::class.java)
 //        intent.putExtra("threadId", showInfo.threadId)
 //        intent.putExtra("poolName", showInfo.poolName)
         startActivity(intent)
+    }
+    fun testHook(view: View){
+
+//        BaseApplication.hookBinderProxy()
+//        BaseApplication.hookParcel()
+//        Thread.sleep(30);
+//        starthreadInfoActivity(view)
+//        Thread.sleep(30);
+//        BaseApplication.unHookParcel()
+//        BaseApplication.unhookBinderProxy();
+
     }
 
 
