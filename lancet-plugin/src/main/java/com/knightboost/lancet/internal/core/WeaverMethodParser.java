@@ -263,8 +263,11 @@ public class WeaverMethodParser {
             String targetMethodDesc = getTargetMethodDesc();
             AnnotationNode nameRegex = getAnnotation(methodNode, NameRegex.class);
             String regex = null;
-            if (nameRegex!=null){
-                 regex = AnnotationNodeUtil.getAnnotationStringValue(nameRegex, "value");
+            if (nameRegex != null) {
+                regex = AnnotationNodeUtil.getAnnotationStringValue(nameRegex, "value");
+                System.out.println("regex=" + regex);
+            } else {
+                System.out.println("regex=null");
             }
             for (String targetClass : targetClasses) {
                 ProxyInfo proxyInfo = new ProxyInfo(regex, targetClass, targetMethodName,

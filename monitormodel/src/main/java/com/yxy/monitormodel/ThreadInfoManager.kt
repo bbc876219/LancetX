@@ -37,7 +37,7 @@ class ThreadInfoManager private constructor() {
             threadInfo[threadId]!!.state = Thread.State.TERMINATED
             threadInfo[threadId]!!.endTime = SystemClock.elapsedRealtime();
         }
-        Log.d("thread.m", "removeThreadInfo() called with: threadId = $threadId  threadinfo=${threadInfo[threadId]}")
+        //Log.d("thread.m", "removeThreadInfo() called with: threadId = $threadId  threadinfo=${threadInfo[threadId]}")
 
     }
 

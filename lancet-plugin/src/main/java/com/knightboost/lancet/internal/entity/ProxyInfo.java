@@ -50,6 +50,9 @@ public class ProxyInfo {
     }
 
     public boolean match(String className) {
+        if (pattern != null){
+            System.out.println( "match() called with: className = [" + className + "] with pattern="+regex+"  ,rs="+(pattern.matcher(className).matches()));
+        }
         return pattern == null || pattern.matcher(className).matches();
     }
 

@@ -8,7 +8,7 @@ ext {
     cmakeVersion = "3.22.1"
     abiFilters = "armeabi-v7a,arm64-v8a"
     useASAN = false
-    bytehookVersion = "1.0.10"
+    bytehookVersion = "1.0.11"
 
 }
 buildscript {
@@ -30,11 +30,9 @@ buildscript {
 
         //比对字节码
         classpath 'io.github.wurensen:gradle-android-plugin-aspectjx:2.0.14'
-
-        classpath "com.bytedance.android.byteX:base-plugin:0.3.1"
         classpath 'com.vanniktech:gradle-maven-publish-plugin:0.18.0'
-        //classpath 'io.github.knight-zxw:lancet-plugin:0.0.7'
-        classpath 'io.github.lancetx:lancet-plugin:0.0.9'
+        classpath "com.bytedance.android.byteX:base-plugin:0.3.1"
+        classpath 'com.bbc876219.lancetx:lancet-plugin:0.0.11'
 //        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:1.6.10"
 //        classpath "io.codearte.gradle.nexus:gradle-nexus-staging-plugin:0.30.0"
         // NOTE: Do not place your application dependencies here; they belong

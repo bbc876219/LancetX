@@ -9,6 +9,7 @@ import android.os.IBinder;
 import android.os.Message;
 import android.os.Parcel;
 import android.os.StrictMode;
+import android.os.UserHandle;
 import android.telephony.TelephonyManager;
 import android.util.Log;
 import android.view.View;
@@ -18,7 +19,7 @@ import android.webkit.WebView;
 import android.widget.ImageView;
 
 import com.bbc.NativeHacker;
-import com.hdquantum.android.slowdoctor.BuildConfig;
+import com.hdquantum.android.test.BuildConfig;
 
 import dalvik.system.DexFile;
 import de.robv.android.xposed.DexposedBridge;

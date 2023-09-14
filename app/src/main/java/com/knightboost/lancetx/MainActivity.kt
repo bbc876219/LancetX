@@ -15,7 +15,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.bbc.NativeHookee
-import com.hdquantum.android.slowdoctor.R
+import com.hdquantum.android.test.R
 import com.yxy.monitormodel.ui.TrackerActivity
 import kotlinx.android.synthetic.main.activity_main.button
 import kotlinx.android.synthetic.main.activity_main.button2

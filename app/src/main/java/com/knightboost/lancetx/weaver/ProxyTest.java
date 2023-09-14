@@ -9,6 +9,7 @@ import com.knightboost.lancet.api.Origin;
 import com.knightboost.lancet.api.Scope;
 import com.knightboost.lancet.api.This;
 import com.knightboost.lancet.api.annotations.Group;
+import com.knightboost.lancet.api.annotations.NameRegex;
 import com.knightboost.lancet.api.annotations.Proxy;
 import com.knightboost.lancet.api.annotations.TargetClass;
 import com.knightboost.lancet.api.annotations.TargetMethod;
@@ -39,6 +40,7 @@ public class ProxyTest {
     @Proxy()
     @TargetClass(value = "java.util.concurrent.Executors", scope = Scope.SELF)
     @TargetMethod(methodName = "newCachedThreadPool")
+    @NameRegex("(?!com/yxy/monitormodel/proxy/).*")
     public static ExecutorService newCachedThreadPool() {
 //        Executors.newCachedThreadPool()
         return ProxyExecutors.newCachedThreadPool();
@@ -47,6 +49,7 @@ public class ProxyTest {
     @Proxy()
     @TargetClass(value = "java.util.concurrent.Executors", scope = Scope.SELF)
     @TargetMethod(methodName = "newCachedThreadPool")
+    @NameRegex("(?!com/yxy/monitormodel/proxy/).*")
     public static ExecutorService newCachedThreadPool(ThreadFactory threadFactory) {
         return ProxyExecutors.newCachedThreadPool(threadFactory);
     }
@@ -54,6 +57,7 @@ public class ProxyTest {
     @Proxy()
     @TargetClass(value = "java.util.concurrent.Executors", scope = Scope.SELF)
     @TargetMethod(methodName = "newFixedThreadPool")
+    @NameRegex("(?!com/yxy/monitormodel/proxy/).*")
     public static ExecutorService newFixedThreadPool(int threads) {
         return ProxyExecutors.newFixedThreadPool(threads);
     }
@@ -61,6 +65,7 @@ public class ProxyTest {
     @Proxy()
     @TargetClass(value = "java.util.concurrent.Executors", scope = Scope.SELF)
     @TargetMethod(methodName = "newFixedThreadPool")
+    @NameRegex("(?!com/yxy/monitormodel/proxy/).*")
     public static ExecutorService newFixedThreadPool(int threads, ThreadFactory threadFactory) {
         return ProxyExecutors.newFixedThreadPool(threads, threadFactory);
     }
@@ -68,6 +73,7 @@ public class ProxyTest {
     @Proxy()
     @TargetClass(value = "java.util.concurrent.Executors", scope = Scope.SELF)
     @TargetMethod(methodName = "newWorkStealingPool")
+    @NameRegex("(?!com/yxy/monitormodel/proxy/).*")
     public static ExecutorService newWorkStealingPool(int parallelism) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             return ProxyExecutors.newWorkStealingPool(parallelism);
@@ -91,6 +97,7 @@ public class ProxyTest {
     @Proxy()
     @TargetClass(value = "java.util.concurrent.Executors", scope = Scope.SELF)
     @TargetMethod(methodName = "newSingleThreadExecutor")
+    @NameRegex("(?!com/yxy/monitormodel/proxy/).*")
     public static ExecutorService newSingleThreadExecutor() {
 
         return ProxyExecutors.newSingleThreadExecutor();
@@ -100,6 +107,7 @@ public class ProxyTest {
     @Proxy()
     @TargetClass(value = "java.util.concurrent.Executors", scope = Scope.SELF)
     @TargetMethod(methodName = "newSingleThreadExecutor")
+    @NameRegex("(?!com/yxy/monitormodel/proxy/).*")
     public static ExecutorService newSingleThreadExecutor(ThreadFactory threadFactory) {
 
         return ProxyExecutors.newSingleThreadExecutor(threadFactory);
@@ -109,6 +117,7 @@ public class ProxyTest {
     @Proxy()
     @TargetClass(value = "java.util.concurrent.Executors", scope = Scope.SELF)
     @TargetMethod(methodName = "newSingleThreadScheduledExecutor")
+    @NameRegex("(?!com/yxy/monitormodel/proxy/).*")
     public static ExecutorService newSingleThreadScheduledExecutor(ThreadFactory threadFactory) {
         return ProxyExecutors.newSingleThreadScheduledExecutor(threadFactory);
     }
@@ -116,6 +125,7 @@ public class ProxyTest {
     @Proxy()
     @TargetClass(value = "java.util.concurrent.Executors", scope = Scope.SELF)
     @TargetMethod(methodName = "newScheduledThreadPool")
+    @NameRegex("(?!com/yxy/monitormodel/proxy/).*")
     public static ScheduledExecutorService newScheduledThreadPool(int corePoolSize) {
         return ProxyExecutors.newScheduledThreadPool(corePoolSize);
 
@@ -125,6 +135,7 @@ public class ProxyTest {
     @Proxy()
     @TargetClass(value = "java.util.concurrent.Executors", scope = Scope.SELF)
     @TargetMethod(methodName = "unconfigurableExecutorService")
+    @NameRegex("(?!com/yxy/monitormodel/proxy/).*")
     public static ExecutorService unconfigurableExecutorService(ExecutorService executorService) {
         return ProxyExecutors.unconfigurableExecutorService(executorService);
     }
@@ -133,6 +144,7 @@ public class ProxyTest {
     @Proxy()
     @TargetClass(value = "java.util.concurrent.Executors", scope = Scope.SELF)
     @TargetMethod(methodName = "unconfigurableScheduledExecutorService")
+    @NameRegex("(?!com/yxy/monitormodel/proxy/).*")
     public static ExecutorService unconfigurableScheduledExecutorService(ScheduledExecutorService executorService) {
         return ProxyExecutors.unconfigurableScheduledExecutorService(executorService);
     }
